@@ -90,58 +90,260 @@ const GUIDE=[
 ];
 
 function makeCert(name,score,dateStr,logo){
-  return new Promise(res=>{
-    const W=1050,H=1200,cv=document.createElement("canvas");
-    cv.width=W;cv.height=H;
+  return new Promise(resolve=>{
+    /* ----------------------------------------------------------------
+       SECURITY: this function runs entirely client-side on the user's
+       own browser. No data (name, date, score) is ever sent anywhere.
+       The canvas output is a PNG data URL stored only in React state.
+    ---------------------------------------------------------------- */
+    const W=1400, H=990;
+    const cv=document.createElement("canvas");
+    cv.width=W; cv.height=H;
     const c=cv.getContext("2d");
-    const bg=c.createLinearGradient(0,0,W,H);bg.addColorStop(0,"#f8f8ff");bg.addColorStop(1,"#eaeaff");
-    c.fillStyle=bg;c.fillRect(0,0,W,H);
-    c.strokeStyle="rgba(108,92,231,0.06)";c.lineWidth=1.5;
-    for(let i=0;i<12;i++){c.beginPath();c.moveTo(-60,200+i*85);for(let x=0;x<=W+100;x+=12)c.lineTo(x-60,200+i*85+Math.sin(x*0.016)*38);c.stroke();}
-    c.fillStyle="rgba(108,92,231,0.13)";
-    for(let r=0;r<10;r++)for(let cc=0;cc<7;cc++){c.beginPath();c.arc(W-52-cc*17,65+r*17,2.5,0,Math.PI*2);c.fill();}
-    const sg=c.createLinearGradient(0,0,0,H);sg.addColorStop(0,"#280070");sg.addColorStop(0.4,"#6c5ce7");sg.addColorStop(0.7,"#5020b8");sg.addColorStop(1,"#280070");
-    c.fillStyle=sg;c.fillRect(0,0,20,H);c.fillRect(W-20,0,20,H);
-    const bg2=c.createLinearGradient(0,0,W,0);bg2.addColorStop(0,"#280070");bg2.addColorStop(0.5,"#6c5ce7");bg2.addColorStop(1,"#280070");
-    c.fillStyle=bg2;c.fillRect(0,H-20,W,20);
-    const bl=c.createRadialGradient(0,H,0,0,H,260);bl.addColorStop(0,"rgba(60,0,190,0.6)");bl.addColorStop(1,"rgba(60,0,190,0)");c.fillStyle=bl;c.fillRect(0,H-260,300,260);
-    const br=c.createRadialGradient(W,H,0,W,H,300);br.addColorStop(0,"rgba(20,60,210,0.55)");br.addColorStop(1,"rgba(20,60,210,0)");c.fillStyle=br;c.fillRect(W-300,H-300,300,300);
-    c.strokeStyle="rgba(100,140,255,0.15)";c.lineWidth=3;for(let i=0;i<7;i++){c.beginPath();c.moveTo(W-10,H-10);c.lineTo(W-10-i*50,H-160-i*28);c.stroke();}
-    c.strokeStyle="#5228b8";c.lineWidth=3.5;c.strokeRect(22,22,W-44,H-44);c.strokeStyle="#a29bfe";c.lineWidth=2;c.strokeRect(32,32,W-64,H-64);
-    [[40,40],[W-40,40],[40,H-40],[W-40,H-40]].forEach(([x,y])=>{const s=22;c.strokeStyle="#8866cc";c.lineWidth=2.5;c.beginPath();c.moveTo(x,y+s);c.lineTo(x,y);c.lineTo(x+s,y);c.stroke();c.beginPath();c.moveTo(x-s,y);c.lineTo(x,y);c.lineTo(x,y-s);c.stroke();});
-    const draw=()=>{
-      c.textAlign="center";
-      c.fillStyle="#1535ff";c.font="bold 56px Arial,sans-serif";c.fillText("Aurexis",W/2,325);
-      c.strokeStyle="#666";c.lineWidth=1;c.beginPath();c.moveTo(308,344);c.lineTo(412,344);c.stroke();c.beginPath();c.moveTo(638,344);c.lineTo(742,344);c.stroke();
-      c.fillStyle="#555";c.font="14px Arial,sans-serif";c.fillText("AI CHATBOT",W/2,350);
-      c.fillStyle="#060818";c.font="bold 92px Georgia,serif";c.fillText("CERTIFICATE",W/2,450);
-      c.strokeStyle="#6c5ce7";c.lineWidth=2.5;c.beginPath();c.moveTo(118,480);c.lineTo(310,480);c.stroke();c.beginPath();c.moveTo(740,480);c.lineTo(932,480);c.stroke();
-      c.fillStyle="#6c5ce7";c.beginPath();c.arc(115,480,4.5,0,Math.PI*2);c.fill();c.beginPath();c.arc(935,480,4.5,0,Math.PI*2);c.fill();
-      c.font="bold 23px Arial,sans-serif";c.fillText("OF COMPLETION",W/2,490);
-      c.fillStyle="#777";c.font="14px Arial,sans-serif";c.fillText("THIS CERTIFICATE IS PROUDLY PRESENTED TO",W/2,530);
-      c.strokeStyle="#6c5ce7";c.lineWidth=1.5;c.setLineDash([2,8]);c.beginPath();c.moveTo(118,546);c.lineTo(932,546);c.stroke();c.setLineDash([]);
-      c.fillStyle="#6c5ce7";c.beginPath();c.arc(115,546,5,0,Math.PI*2);c.fill();c.beginPath();c.arc(935,546,5,0,Math.PI*2);c.fill();
-      c.fillStyle="#080820";c.font="bold 52px Georgia,serif";c.fillText(name,W/2,618);
-      const nw=c.measureText(name).width;c.strokeStyle="#6c5ce7";c.lineWidth=2.5;c.beginPath();c.moveTo(W/2-nw/2,632);c.lineTo(W/2+nw/2,632);c.stroke();
-      c.fillStyle="#444";c.font="16px Arial,sans-serif";
-      ["for successfully completing the Aurexis AI Chatbot Certification Program.","This certifies your understanding and practical knowledge","of responsible AI usage, smart communication,","and real-world AI chatbot applications."].forEach((l,i)=>c.fillText(l,W/2,668+i*27));
-      c.fillStyle="#ede9ff";c.beginPath();const bx=410,by=742,bw=230,bh=40,rb=20;c.moveTo(bx+rb,by);c.lineTo(bx+bw-rb,by);c.arcTo(bx+bw,by,bx+bw,by+rb,rb);c.lineTo(bx+bw,by+bh-rb);c.arcTo(bx+bw,by+bh,bx+bw-rb,by+bh,rb);c.lineTo(bx+rb,by+bh);c.arcTo(bx,by+bh,bx,by+bh-rb,rb);c.lineTo(bx,by+rb);c.arcTo(bx,by,bx+rb,by,rb);c.closePath();c.fill();
-      c.fillStyle="#6c5ce7";c.font="bold 16px Arial,sans-serif";c.fillText("Score: "+score+" / 50",W/2,768);
-      c.strokeStyle="#6c5ce7";c.lineWidth=1;c.beginPath();c.moveTo(188,804);c.lineTo(392,804);c.stroke();c.beginPath();c.moveTo(658,804);c.lineTo(862,804);c.stroke();
-      c.fillStyle="#666";c.font="bold 14px Arial,sans-serif";c.fillText("YOU ARE NOW RECOGNIZED AS",W/2,812);
-      c.fillStyle="#4a20b0";c.font="bold 34px Arial,sans-serif";c.fillText("AUREXIS CERTIFIED USER",W/2,855);
-      const lau=(sx,sy,dir)=>{c.strokeStyle="#7a56bf";c.lineWidth=1.8;for(let i=0;i<7;i++){const a=(dir===1?-0.5:Math.PI+0.5)+i*dir*0.22,ln=17+i*2.5,bx2=sx+dir*i*10,by2=sy-i*7;c.beginPath();c.moveTo(bx2,by2);c.lineTo(bx2+Math.cos(a)*ln,by2+Math.sin(a)*ln);c.stroke();}};
-      lau(195,878,1);lau(855,878,-1);
-      const PR=[{l:"HONEST USE",s:"Use technology\nwith integrity.",col:"#1535ff"},{l:"SMART THINKING",s:"Solve problems\nwith intelligence.",col:"#5228c0"},{l:"EFFECTIVE",s:"Work smarter,\nachieve more.",col:"#0099cc"},{l:"HUMAN FIRST",s:"Empower people,\nnot replace them.",col:"#7030a0"}];
-      const IC=["✅","🧠","💬","❤️"];const iY=920,iSp=192,iSt=W/2-iSp*1.5;
-      PR.forEach((p,i)=>{const x=iSt+i*iSp;const cg=c.createRadialGradient(x,iY,5,x,iY,36);cg.addColorStop(0,p.col+"cc");cg.addColorStop(1,p.col+"33");c.fillStyle=cg;c.beginPath();c.arc(x,iY,36,0,Math.PI*2);c.fill();c.strokeStyle=p.col+"88";c.lineWidth=2;c.beginPath();c.arc(x,iY,36,0,Math.PI*2);c.stroke();c.font="26px serif";c.fillText(IC[i],x,iY+10);if(i<3){c.fillStyle="#ccc";c.beginPath();c.arc(x+iSp/2,iY,4,0,Math.PI*2);c.fill();}c.fillStyle="#1a1a2e";c.font="bold 11px Arial,sans-serif";c.fillText(p.l,x,iY+60);c.fillStyle="#666";c.font="11px Arial,sans-serif";p.s.split("\n").forEach((ln,li)=>c.fillText(ln,x,iY+76+li*16));});
-      c.textAlign="left";c.fillStyle="#4a20b0";c.font="italic 30px Georgia,serif";c.fillText("Aurexis Team",88,1098);c.fillStyle="#444";c.font="bold 11px Arial,sans-serif";c.fillText("AUREXIS TEAM",88,1118);c.fillStyle="#888";c.font="11px Arial,sans-serif";c.fillText("ISSUER",88,1132);
-      c.textAlign="center";c.fillStyle="#0a0a1e";c.beginPath();c.arc(W/2,1108,48,0,Math.PI*2);c.fill();c.strokeStyle="#f9ca24";c.lineWidth=5.5;c.beginPath();c.arc(W/2,1108,48,0,Math.PI*2);c.stroke();c.font="36px serif";c.fillText("🤖",W/2,1121);c.fillStyle="#5228c0";c.fillRect(W/2-12,1154,10,28);c.fillStyle="#a29bfe";c.fillRect(W/2+2,1154,10,28);c.fillStyle="#f9ca24";c.font="13px serif";[[W/2-62,1082],[W/2+62,1082],[W/2-66,1118],[W/2+66,1118]].forEach(([x,y])=>c.fillText("★",x,y));
-      c.textAlign="right";c.strokeStyle="#6c5ce7";c.lineWidth=1.5;c.strokeRect(W-220,1080,168,72);c.font="22px serif";c.fillStyle="#6c5ce7";c.fillText("📅",W-194,1108);c.fillStyle="#080820";c.font="bold 15px Arial,sans-serif";c.fillText(dateStr,W-72,1110);c.fillStyle="#6c5ce7";c.font="bold 11px Arial,sans-serif";c.fillText("DATE OF ISSUE",W-72,1130);
+
+    /* helper — stable pseudo-random from seed */
+    const rnd=n=>{let x=Math.sin(n+1)*43758.5453123;return x-Math.floor(x);};
+
+    /* helper — draw a ♦ diamond */
+    const diamond=(x,y,s,col)=>{
+      c.fillStyle=col;c.beginPath();
+      c.moveTo(x,y-s);c.lineTo(x+s,y);c.lineTo(x,y+s);c.lineTo(x-s,y);
+      c.closePath();c.fill();
     };
-    const img=new Image();img.onload=()=>{c.drawImage(img,W/2-85,28,170,170);draw();res(cv.toDataURL("image/png"));};img.onerror=()=>{draw();res(cv.toDataURL("image/png"));};img.src=logo;
+
+    /* helper — fading horizontal line */
+    const fadeLine=(x1,x2,y,col)=>{
+      const g=c.createLinearGradient(x1,y,x2,y);
+      g.addColorStop(0,"rgba(0,0,0,0)");
+      g.addColorStop(0.2,col);
+      g.addColorStop(0.8,col);
+      g.addColorStop(1,"rgba(0,0,0,0)");
+      c.strokeStyle=g;c.lineWidth=1;
+      c.beginPath();c.moveTo(x1,y);c.lineTo(x2,y);c.stroke();
+    };
+
+    /* ── 1. BACKGROUND ─────────────────────────────────────── */
+    const bgG=c.createRadialGradient(W/2,H*0.38,0,W/2,H*0.38,W*0.9);
+    bgG.addColorStop(0,"#0b1030");
+    bgG.addColorStop(0.45,"#060c22");
+    bgG.addColorStop(1,"#020510");
+    c.fillStyle=bgG; c.fillRect(0,0,W,H);
+
+    /* ── 2. STAR FIELD ─────────────────────────────────────── */
+    for(let i=0;i<280;i++){
+      const x=rnd(i*2.3)*W, y=rnd(i*5.7)*H, r=rnd(i*11.1)*1.4+0.2;
+      c.fillStyle=`rgba(255,255,255,${0.3+rnd(i*7.9)*0.5})`;
+      c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();
+    }
+
+    /* ── 3. LIGHT RAYS ─────────────────────────────────────── */
+    const ray=(ox,oy,angleDeg,len,rgb,maxA)=>{
+      const a=angleDeg*Math.PI/180;
+      const ex=ox+Math.cos(a)*len, ey=oy+Math.sin(a)*len;
+      for(let w=14;w>=1;w--){
+        const g2=c.createLinearGradient(ox,oy,ex,ey);
+        g2.addColorStop(0,`rgba(${rgb},${maxA*(w/14)*0.9})`);
+        g2.addColorStop(1,`rgba(${rgb},0)`);
+        c.strokeStyle=g2; c.lineWidth=w*16; c.globalAlpha=0.018;
+        c.beginPath();c.moveTo(ox,oy);c.lineTo(ex,ey);c.stroke();
+      }
+      c.globalAlpha=1;
+    };
+    /* Top-right bright blue beam */
+    ray(W, 0,   142, W*1.1, "40,130,255", 1);
+    ray(W, 0,   150, W*0.95,"70,160,255", 0.8);
+    ray(W, 80,  156, W*0.85,"90,100,255", 0.65);
+    ray(W, 160, 162, W*0.75,"100,80,240", 0.45);
+    /* Bottom-left blue/purple beam */
+    ray(0, H,  -36,  W*1.0, "30,110,255", 0.9);
+    ray(0, H,  -28,  W*0.88,"60,70,230",  0.7);
+    ray(50,H,  -20,  W*0.75,"100,60,220", 0.5);
+
+    /* ── 4. OUTER BORDER ───────────────────────────────────── */
+    c.strokeStyle="rgba(70,110,220,0.75)"; c.lineWidth=2.5;
+    c.strokeRect(16,16,W-32,H-32);
+    c.strokeStyle="rgba(100,140,255,0.35)"; c.lineWidth=1;
+    c.strokeRect(27,27,W-54,H-54);
+
+    /* ── 5. CORNER ORNAMENTS ───────────────────────────────── */
+    const corner=(tx,ty,sx,sy)=>{
+      c.save(); c.translate(tx,ty); c.scale(sx,sy);
+      c.strokeStyle="rgba(160,185,255,0.75)"; c.lineWidth=2;
+      /* outer L */
+      c.beginPath();c.moveTo(0,58);c.lineTo(0,10);c.arcTo(0,0,10,0,10);c.lineTo(58,0);c.stroke();
+      /* inner L */
+      c.strokeStyle="rgba(130,155,255,0.4)"; c.lineWidth=1;
+      c.beginPath();c.moveTo(0,46);c.lineTo(0,16);c.arcTo(0,8,8,8,8);c.lineTo(46,8);c.stroke();
+      /* accent dots */
+      c.fillStyle="rgba(160,185,255,0.7)";
+      [[0,0],[24,0],[0,24]].forEach(([dx,dy])=>{c.beginPath();c.arc(dx,dy,2.8,0,Math.PI*2);c.fill();});
+      c.restore();
+    };
+    corner(16,16, 1, 1); corner(W-16,16,-1, 1);
+    corner(16,H-16,1,-1); corner(W-16,H-16,-1,-1);
+
+    /* ── 6. LOGO (drawn after image loads — see below) ─────── */
+
+    /* ── 7. "AUREXIS" ──────────────────────────────────────── */
+    c.textAlign="center";
+    c.shadowColor="rgba(60,130,255,0.95)"; c.shadowBlur=38;
+    c.fillStyle="#ffffff"; c.font="bold 70px Arial,sans-serif";
+    /* manually letter-spaced */
+    const letters="AUREXIS";
+    const lsp=22, lw=letters.length*62+(letters.length-1)*lsp;
+    let lx=W/2-lw/2+31;
+    for(const ch of letters){c.fillText(ch,lx,248);lx+=62+lsp;}
+    c.shadowBlur=0;
+
+    /* ── 8. TAGLINE "THINK. TALK. TRANSFORM." ─────────────── */
+    fadeLine(W/2-290,W/2-30,272,"rgba(100,140,255,0.55)");
+    fadeLine(W/2+30, W/2+290,272,"rgba(100,140,255,0.55)");
+    c.fillStyle="rgba(150,175,255,0.72)"; c.font="13px Arial,sans-serif";
+    c.fillText("THINK.  TALK.  TRANSFORM.",W/2,276);
+
+    /* ── 9. "CERTIFICATE" ─────────────────────────────────── */
+    const certG=c.createLinearGradient(0,295,0,420);
+    certG.addColorStop(0,"#ffffff");
+    certG.addColorStop(0.28,"#dde6ff");
+    certG.addColorStop(0.6,"#aabcff");
+    certG.addColorStop(1,"#8096ee");
+    c.shadowColor="rgba(80,120,255,0.55)"; c.shadowBlur=24;
+    c.fillStyle=certG; c.font="bold 118px Georgia,serif";
+    c.fillText("CERTIFICATE",W/2,420);
+    c.shadowBlur=0;
+
+    /* ── 10. "OF APPRECIATION" ────────────────────────────── */
+    /* purple fade line */
+    const apG=c.createLinearGradient(W/2-360,0,W/2+360,0);
+    apG.addColorStop(0,"rgba(80,60,210,0)");
+    apG.addColorStop(0.15,"rgba(110,80,255,0.85)");
+    apG.addColorStop(0.85,"rgba(110,80,255,0.85)");
+    apG.addColorStop(1,"rgba(80,60,210,0)");
+    c.strokeStyle=apG; c.lineWidth=1.5;
+    c.beginPath();c.moveTo(W/2-360,446);c.lineTo(W/2+360,446);c.stroke();
+    diamond(W/2-348,446,7,"rgba(130,100,255,0.9)");
+    diamond(W/2+348,446,7,"rgba(130,100,255,0.9)");
+    /* text */
+    c.fillStyle="#8888dd"; c.font="bold 30px Arial,sans-serif";
+    const oa="OF APPRECIATION", oasp=10;
+    const oaw=oa.length*22+(oa.length-1)*oasp;
+    let oax=W/2-oaw/2+11;
+    for(const ch of oa){c.fillText(ch,oax,474);oax+=22+oasp;}
+    /* bottom thin line */
+    c.strokeStyle=apG; c.lineWidth=1;
+    c.beginPath();c.moveTo(W/2-295,484);c.lineTo(W/2+295,484);c.stroke();
+
+    /* ── 11. "THIS CERTIFICATE IS PROUDLY PRESENTED TO" ───── */
+    c.fillStyle="rgba(190,205,255,0.6)"; c.font="13px Arial,sans-serif";
+    const ptxt="THIS CERTIFICATE IS PROUDLY PRESENTED TO";
+    const ptsp=4, ptw=ptxt.length*8.5+(ptxt.length-1)*ptsp;
+    let ptx=W/2-ptw/2+4.25;
+    for(const ch of ptxt){c.fillText(ch,ptx,520);ptx+=8.5+ptsp;}
+
+    /* ── 12. DIVIDER LINE + DIAMOND ───────────────────────── */
+    fadeLine(W/2-340,W/2-16,550,"rgba(100,125,255,0.5)");
+    fadeLine(W/2+16, W/2+340,550,"rgba(100,125,255,0.5)");
+    diamond(W/2,550,9,"rgba(120,145,255,0.92)");
+
+    /* ── 13. RECIPIENT NAME ───────────────────────────────── */
+    c.shadowColor="rgba(150,190,255,0.65)"; c.shadowBlur=20;
+    c.fillStyle="#ffffff"; c.font="bold 56px Georgia,serif";
+    c.fillText(name,W/2,622);
+    c.shadowBlur=0;
+
+    /* ── 14. BODY TEXT ───────────────────────────────────── */
+    c.fillStyle="rgba(190,208,255,0.74)"; c.font="19px Arial,sans-serif";
+    ["In recognition of your dedication, innovation, and outstanding",
+     "contributions in the field of Artificial Intelligence.",
+     "Your commitment to excellence inspires and drives the future."
+    ].forEach((l,i)=>c.fillText(l,W/2,678+i*34));
+
+    /* ── 15. LAUREL BRANCHES ─────────────────────────────── */
+    const laurel=(sx,sy,dir)=>{
+      for(let i=0;i<14;i++){
+        const t=i/13;
+        const bx=sx+dir*i*11, by=sy-i*6.5;
+        const angle=(dir===1?-0.62:Math.PI+0.62)+i*dir*0.13;
+        const len=13+i*2.6;
+        /* blue→purple gradient along branch */
+        c.strokeStyle=`rgba(${90+i*5},${55+i*9},${215+i*2},${0.6+t*0.3})`;
+        c.lineWidth=1.5+t*0.8;
+        c.beginPath();c.moveTo(bx,by);
+        c.lineTo(bx+Math.cos(angle)*len,by+Math.sin(angle)*len);
+        c.stroke();
+      }
+    };
+    laurel(W/2-130,845,1);
+    laurel(W/2+130,845,-1);
+
+    /* ── 16. MEDAL SEAL ──────────────────────────────────── */
+    /* outer dark circle */
+    const medG=c.createRadialGradient(W/2,822,0,W/2,822,72);
+    medG.addColorStop(0,"#1c1e3c");
+    medG.addColorStop(0.7,"#0f1025");
+    medG.addColorStop(1,"#080912");
+    c.fillStyle=medG;
+    c.beginPath();c.arc(W/2,822,72,0,Math.PI*2);c.fill();
+    /* dotted outer ring */
+    c.strokeStyle="rgba(130,155,255,0.5)"; c.lineWidth=1.5;
+    c.setLineDash([5,8]);
+    c.beginPath();c.arc(W/2,822,67,0,Math.PI*2);c.stroke();
+    c.setLineDash([]);
+    /* solid gradient ring */
+    const rngG=c.createLinearGradient(W/2-67,822,W/2+67,822);
+    rngG.addColorStop(0,"#4828a0");rngG.addColorStop(0.5,"#9075d8");rngG.addColorStop(1,"#4828a0");
+    c.strokeStyle=rngG; c.lineWidth=3.5;
+    c.beginPath();c.arc(W/2,822,59,0,Math.PI*2);c.stroke();
+    /* inner fill */
+    c.fillStyle="#0c0e22";
+    c.beginPath();c.arc(W/2,822,53,0,Math.PI*2);c.fill();
+    /* 8 diamond dots on ring */
+    for(let i=0;i<8;i++){
+      const a=i*Math.PI/4;
+      diamond(W/2+Math.cos(a)*59,822+Math.sin(a)*59,3.5,"rgba(155,135,255,0.78)");
+    }
+
+    /* ── 17. SIGNATURE (left) ────────────────────────────── */
+    fadeLine(W/2-445,W/2-145,895,"rgba(80,125,255,0.58)");
+    c.shadowColor="rgba(80,125,255,0.55)"; c.shadowBlur=14;
+    c.fillStyle="#a0b8ff"; c.font="italic bold 23px Georgia,serif";
+    c.fillText("Aurexis",W/2-295,891);
+    c.shadowBlur=0;
+    c.fillStyle="rgba(80,125,255,0.7)"; c.font="bold 11px Arial,sans-serif";
+    /* letter-spaced "SIGNATURE" */
+    const sigT="SIGNATURE",sigSp=3,sigW=sigT.length*8+(sigT.length-1)*sigSp;
+    let sigx=W/2-295-sigW/2+4;
+    for(const ch of sigT){c.fillText(ch,sigx,916);sigx+=8+sigSp;}
+
+    /* ── 18. DATE (right) ────────────────────────────────── */
+    fadeLine(W/2+145,W/2+445,895,"rgba(80,125,255,0.58)");
+    c.shadowColor="rgba(80,125,255,0.55)"; c.shadowBlur=14;
+    c.fillStyle="#a0b8ff"; c.font="italic 20px Georgia,serif";
+    c.fillText(dateStr,W/2+295,891);   /* ← actual exam date */
+    c.shadowBlur=0;
+    c.fillStyle="rgba(80,125,255,0.7)"; c.font="bold 11px Arial,sans-serif";
+    const dtT="DATE",dtSp=3,dtW=dtT.length*8+(dtT.length-1)*dtSp;
+    let dtx=W/2+295-dtW/2+4;
+    for(const ch of dtT){c.fillText(ch,dtx,916);dtx+=8+dtSp;}
+
+    /* ── LOGO: load & draw last so it sits on top ─────────── */
+    const img=new Image();
+    img.onload=()=>{
+      /* large logo at top */
+      const sz=158, lx2=W/2-sz/2, ly=36;
+      c.drawImage(img,lx2,ly,sz,sz);
+      /* small logo inside medal — clipped to circle */
+      c.save();
+      c.beginPath();c.arc(W/2,822,50,0,Math.PI*2);c.clip();
+      c.drawImage(img,W/2-50,772,100,100);
+      c.restore();
+      resolve(cv.toDataURL("image/png"));
+    };
+    img.onerror=()=>resolve(cv.toDataURL("image/png"));
+    img.src=logo;   /* ← base64 data URI of the user's logo */
   });
 }
+
 
 export default function App(){
   const[page,setPage]=useState("boot");
@@ -1035,32 +1237,8 @@ export default function App(){
               </div>}
               <div ref={botRef}/>
             </div>
-            {/* Input bar — matches image: text field + send button + attachment */}
-            <div style={{padding:"12px 16px",borderTop:"1px solid #e8e8f0",background:"#fff",flexShrink:0,display:"flex",alignItems:"center",gap:"10px"}}>
-              <div style={{flex:1,display:"flex",alignItems:"center",border:"1.5px solid #e8e8f0",borderRadius:"12px",background:"#fafafa",overflow:"hidden"}}>
-                <input
-                  key="chat-input"
-                  ref={inpRef}
-                  style={{flex:1,padding:"11px 14px",border:"none",background:"transparent",color:"#1a1a2e",fontSize:"14px",outline:"none"}}
-                  placeholder="Type your message..."
-                  value={inp}
-                  onChange={e=>setInp(e.target.value)}
-                  onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();}}}
-                />
-                {/* Mic button */}
-                <button onClick={()=>{if(spkOn){stopSpk();return;}if(micOn){stopMic();return;}startMic();}}
-                  style={{background:"none",border:"none",padding:"8px 6px",cursor:"pointer",color:micOn?"#e74c3c":spkOn?"#00cec9":voiceOn?"#00b894":"#aaa",fontSize:"16px",flexShrink:0}}>
-                  {micOn?"⏹":spkOn?"🔊":"🎤"}
-                </button>
-                {/* Attachment icon */}
-                <button style={{background:"none",border:"none",padding:"8px 10px",cursor:"pointer",color:"#aaa",fontSize:"16px",flexShrink:0}}>📎</button>
-              </div>
-              {/* Send button — purple circle with arrow, matches image */}
-              <button onClick={()=>sendMsg()} disabled={!inp.trim()||aiTyping}
-                style={{width:"42px",height:"42px",borderRadius:"50%",flexShrink:0,border:"none",background:inp.trim()&&!aiTyping?AC:"#e0e0e0",color:"#fff",fontSize:"18px",cursor:inp.trim()&&!aiTyping?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:inp.trim()&&!aiTyping?"0 2px 8px rgba(108,92,231,0.4)":"none",transition:"all 0.2s"}}>
-                ➤
-              </button>
-            </div>
+            {/* INPUT BAR IS RENDERED OUTSIDE TC() IN THE MAIN LAYOUT — see desktop/mobile layout below */}
+            <div style={{height:"68px",flexShrink:0}}/>
           </>
         )}
       </div>
@@ -1465,6 +1643,34 @@ export default function App(){
           <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",minHeight:0,background:"#fff"}}>
             {TC()}
           </div>
+        {/* ═══ CHAT INPUT BAR — outside TC() so it NEVER remounts ═══
+             This is the definitive fix for the focus loss bug.
+             The input is always at the same React tree position.
+             Typing one letter NEVER causes this element to remount. */}
+        {tab==="chat"&&curChat&&(
+          <div style={{padding:"12px 16px",borderTop:"1px solid #e8e8f0",background:"#fff",flexShrink:0,display:"flex",alignItems:"center",gap:"10px"}}>
+            <div style={{flex:1,display:"flex",alignItems:"center",border:"1.5px solid #e8e8f0",borderRadius:"12px",background:"#fafafa",overflow:"hidden"}}>
+              <input
+                ref={inpRef}
+                style={{flex:1,padding:"11px 14px",border:"none",background:"transparent",color:"#1a1a2e",fontSize:"14px",outline:"none"}}
+                placeholder={micOn?"Listening…":"Type your message..."}
+                value={inp}
+                onChange={e=>setInp(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();}}}
+                autoComplete="off"
+              />
+              <button onClick={()=>{if(spkOn){stopSpk();return;}if(micOn){stopMic();return;}startMic();}}
+                style={{background:"none",border:"none",padding:"8px 6px",cursor:"pointer",color:micOn?"#e74c3c":spkOn?"#00cec9":voiceOn?"#00b894":"#aaa",fontSize:"16px",flexShrink:0}}>
+                {micOn?"⏹":spkOn?"🔊":"🎤"}
+              </button>
+              <button style={{background:"none",border:"none",padding:"8px 10px",cursor:"pointer",color:"#aaa",fontSize:"16px",flexShrink:0}}>📎</button>
+            </div>
+            <button onClick={()=>sendMsg()} disabled={!inp.trim()||aiTyping}
+              style={{width:"42px",height:"42px",borderRadius:"50%",flexShrink:0,border:"none",background:inp.trim()&&!aiTyping?"#6c5ce7":"#e0e0e0",color:"#fff",fontSize:"18px",cursor:inp.trim()&&!aiTyping?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:inp.trim()&&!aiTyping?"0 2px 8px rgba(108,92,231,0.4)":"none",transition:"all 0.2s"}}>
+              ➤
+            </button>
+          </div>
+        )}
         </div>
 
         {/* ═══ COL 4: RIGHT PANEL — 260px ════════════════════════════════ */}
@@ -1545,6 +1751,34 @@ export default function App(){
         </div>
       </div>
       <div style={S.scroll}>{TC()}</div>
+        {/* ═══ CHAT INPUT BAR — outside TC() so it NEVER remounts ═══
+             This is the definitive fix for the focus loss bug.
+             The input is always at the same React tree position.
+             Typing one letter NEVER causes this element to remount. */}
+        {tab==="chat"&&curChat&&(
+          <div style={{padding:"12px 16px",borderTop:"1px solid #e8e8f0",background:"#fff",flexShrink:0,display:"flex",alignItems:"center",gap:"10px"}}>
+            <div style={{flex:1,display:"flex",alignItems:"center",border:"1.5px solid #e8e8f0",borderRadius:"12px",background:"#fafafa",overflow:"hidden"}}>
+              <input
+                ref={inpRef}
+                style={{flex:1,padding:"11px 14px",border:"none",background:"transparent",color:"#1a1a2e",fontSize:"14px",outline:"none"}}
+                placeholder={micOn?"Listening…":"Type your message..."}
+                value={inp}
+                onChange={e=>setInp(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();}}}
+                autoComplete="off"
+              />
+              <button onClick={()=>{if(spkOn){stopSpk();return;}if(micOn){stopMic();return;}startMic();}}
+                style={{background:"none",border:"none",padding:"8px 6px",cursor:"pointer",color:micOn?"#e74c3c":spkOn?"#00cec9":voiceOn?"#00b894":"#aaa",fontSize:"16px",flexShrink:0}}>
+                {micOn?"⏹":spkOn?"🔊":"🎤"}
+              </button>
+              <button style={{background:"none",border:"none",padding:"8px 10px",cursor:"pointer",color:"#aaa",fontSize:"16px",flexShrink:0}}>📎</button>
+            </div>
+            <button onClick={()=>sendMsg()} disabled={!inp.trim()||aiTyping}
+              style={{width:"42px",height:"42px",borderRadius:"50%",flexShrink:0,border:"none",background:inp.trim()&&!aiTyping?"#6c5ce7":"#e0e0e0",color:"#fff",fontSize:"18px",cursor:inp.trim()&&!aiTyping?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:inp.trim()&&!aiTyping?"0 2px 8px rgba(108,92,231,0.4)":"none",transition:"all 0.2s"}}>
+              ➤
+            </button>
+          </div>
+        )}
       <div style={S.mbn}>
         {MOBN.map(t=>(<button key={t.id} style={S.mbBtn(tab===t.id)} onClick={()=>setTab(t.id)}>
           <span style={{fontSize:"20px"}}>{t.icon}</span>
