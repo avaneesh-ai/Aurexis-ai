@@ -26,7 +26,7 @@ const nowT=()=>new Date().toLocaleTimeString();
 const QUIZ=[
   {q:"What does AI stand for?",o:["Automated Interface","Artificial Intelligence","Advanced Integration","Automated Input"],a:1},
   {q:"What is GoPlanet's primary function?",o:["File Storage","AI Chatbot Platform","Social Network","Video Streaming"],a:1},
-  {q:"Which API powers GoPlanet's chatbot?",o:["OpenAI","Gemini","Groq","Cohere"],a:2},
+  {q:"Which API powers Aurexis chatbot?",o:["Create-AI","Gemini","Groq","Cohere"],a:2},
   {q:"What does LLM stand for?",o:["Large Language Model","Logical Learning Machine","Local Logic Module","Linear Learning Method"],a:0},
   {q:"Minimum score to earn a GoPlanet certificate?",o:["30/50","35/50","40/50","45/50"],a:2},
   {q:"What does 'prompt' mean in AI?",o:["A payment","User input to the AI","A notification","A file format"],a:1},
@@ -78,7 +78,7 @@ const QUIZ=[
 
 const GUIDE=[
   {icon:"🚀",title:"Getting Started",color:"#6c5ce7",steps:[{h:"Register",b:"Create your account with email, password, full name, and mobile number."},{h:"Log In",b:"Sign in — your session persists automatically."},{h:"Start Chatting",b:"Tap + New Chat to begin your first AI conversation."},{h:"Navigate",b:"Use the sidebar (desktop) or bottom bar (mobile) to switch sections."}],tip:"Your data saves automatically. Nothing is lost when you close the app.",note:"No email verification required. Register and start immediately."},
-  {icon:"🔑",title:"Setting Up Your API Keys",color:"#e17055",steps:[{h:"Visit Groq",b:"Go to console.groq.com and create a free account to get your Groq API key."},{h:"Visit OpenAI",b:"Go to platform.openai.com to get your OpenAI API key (optional)."},{h:"Save Keys",b:"Go to ⚙️ Settings → API Keys, paste your key(s), and tap Save."},{h:"Choose Provider",b:"Select Groq or OpenAI as your AI provider in Settings."}],tip:"Your API keys are stored ONLY on your device — never sent to any server or visible to other users.",note:"Without an API key the chatbot will not respond. This is a one-time setup."},
+  {icon:"🔑",title:"Setting Up Your API Keys",color:"#e17055",steps:[{h:"Visit Groq",b:"Go to console.groq.com and create a free account to get your Groq API key."},{h:"Get Create-AI Key",b:"Go to create-pied.vercel.app to get your Create-AI API key."},{h:"Save Keys",b:"Go to ⚙️ Settings → API Keys, paste your key(s), and tap Save."},{h:"Choose Provider",b:"Select Groq or OpenAI as your AI provider in Settings."}],tip:"Your API keys are stored ONLY on your device — never sent to any server or visible to other users.",note:"Without an API key the chatbot will not respond. This is a one-time setup."},
   {icon:"💬",title:"Using the AI Chatbot",color:"#00b894",steps:[{h:"New Chat",b:"Tap + New Chat from the sidebar or welcome screen."},{h:"Type & Send",b:"Type your message and press Enter or tap the send button."},{h:"Voice Mode",b:"Tap 🎤 to speak. The AI listens and replies aloud."},{h:"Chat History",b:"All chats are saved in the sidebar. Tap any to continue."}],tip:"Switch AI models anytime from the model selector.",note:"Your conversations stay private on your device only."},
   {icon:"📁",title:"Managing Projects",color:"#fdcb6e",steps:[{h:"Open Projects",b:"Tap the 📁 Projects section in the sidebar."},{h:"Create Project",b:"Tap + New, enter a name, and tap Create."},{h:"Organise",b:"Use projects to group related AI tasks and ideas."},{h:"Access Anytime",b:"All projects are saved and available every time you open the app."}],tip:"Create separate projects for Work, Personal, Creative Writing, Research, etc.",note:"Projects are stored locally on your device."},
   {icon:"🎨",title:"Image Generator",color:"#a29bfe",steps:[{h:"Open Images",b:"Tap 🎨 Images in the sidebar or bottom nav."},{h:"Write Prompt",b:"Describe the image you want — be as detailed as possible."},{h:"Generate",b:"Tap Generate Image and wait for the result."},{h:"Try Again",b:"Edit your prompt and generate again."}],tip:"More detail = better results.",note:"Connect an image generation API key in Settings for real AI-generated images."},
@@ -356,8 +356,9 @@ export default function App(){
   const[sbOpen,setSbOpen]=useState(false);
   const[dark,setDark]=useState(false);
   const[groqKey,setGK]=useState("");
-  const[openaiKey,setOK]=useState("");
+  const[createaiKey,setCAK]=useState("");
   const[aiProv,setProv]=useState("groq");
+  const[createaiUrl,setCAUrl]=useState("https://api.create-pied.vercel.app/v1");
   const[model,setModel]=useState("llama-3.3-70b-versatile");
   const[chats,setChats]=useState({});
   const[curChat,setCurChat]=useState(null);
@@ -386,6 +387,7 @@ export default function App(){
   const[certDt,setCertDt]=useState("");
   const[certLoad,setCertLoad]=useState(false);
   const[gIdx,setGIdx]=useState(0);
+  const[dqErr,setDqErr]=useState("");
 
   const botRef=useRef(null);
   const recRef=useRef(null);
@@ -415,19 +417,28 @@ export default function App(){
     {id:"gemma2-9b-it",n:"Gemma 2 9B",t:"Google"},
     {id:"llama-3.1-8b-instant",n:"Llama 3.1 8B",t:"Meta"},
   ];
-  const OM=[
-    {id:"gpt-4o",n:"GPT-4o",t:"OpenAI"},
-    {id:"gpt-4o-mini",n:"GPT-4o Mini",t:"OpenAI"},
-    {id:"gpt-4-turbo",n:"GPT-4 Turbo",t:"OpenAI"},
-    {id:"gpt-3.5-turbo",n:"GPT-3.5 Turbo",t:"OpenAI"},
+  const CAM=[
+    {id:"createai-pro",n:"Create-AI Pro",t:"Create-AI"},
+    {id:"createai-fast",n:"Create-AI Fast",t:"Create-AI"},
+    {id:"createai-vision",n:"Create-AI Vision",t:"Create-AI"},
   ];
-  const MODELS=aiProv==="openai"?OM:GM;
+  const MODELS=aiProv==="createai"?CAM:GM;
+  // Daily question limits
+  const DAILY_LIMIT=user?.isAdv?50:user?.isPro?30:20;
+  const todayKey="gp_ql_"+uid+"_"+(new Date().toISOString().slice(0,10));
+  const getDailyCount=()=>{try{return parseInt(localStorage.getItem(todayKey)||"0");}catch{return 0;}};
+  const incDailyCount=()=>{try{localStorage.setItem(todayKey,String(getDailyCount()+1));}catch{}};
 
   useEffect(()=>{
     const s=DB.g(SESS);
     if(s){const u=DB.g(uK(s));if(u){loadU(s,u);return;}}
     setPage("login");
   },[]);
+  // Sync dark mode to document body so entire page changes
+  useEffect(()=>{
+    document.body.style.background=dark?"#0e0e1c":"#f1f1f8";
+    document.body.style.color=dark?"#e6e6ff":"#1a1a3e";
+  },[dark]);
   useEffect(()=>{botRef.current?.scrollIntoView({behavior:"smooth"});},[msgs]);
 
   function loadU(id,u){
@@ -437,7 +448,8 @@ export default function App(){
     // Load API keys ONLY from private settings — never from user object
     const sk=DB.g(sK(id),{});
     if(sk.groqKey)setGK(sk.groqKey);
-    if(sk.openaiKey)setOK(sk.openaiKey);
+    if(sk.createaiKey)setCAK(sk.createaiKey);
+    if(sk.createaiUrl)setCAUrl(sk.createaiUrl);
     if(sk.prov)setProv(sk.prov);
     if(sk.model)setModel(sk.model);
     if(sk.dark!==undefined)setDark(sk.dark);
@@ -453,7 +465,7 @@ export default function App(){
   // pU: never allow API keys or password in user object
   function pU(id,patch){
     const u={...DB.g(uK(id))||{}};
-    const BLOCKED=new Set(["groqKey","openaiKey","apiKey","pw","password"]);
+    const BLOCKED=new Set(["groqKey","openaiKey","createaiKey","apiKey","pw","password"]);
     Object.keys(patch).forEach(k=>{if(!BLOCKED.has(k))u[k]=patch[k];});
     DB.s(uK(id),u);setUser(u);
   }
@@ -539,9 +551,18 @@ export default function App(){
     if(!text||!curChat)return;
     // Security: read key ONLY from private settings key, never user object
     const sk=DB.g(sK(uid),{});
+    // Daily limit check
+    const todayK="gp_ql_"+uid+"_"+(new Date().toISOString().slice(0,10));
+    const dCount=()=>{try{return parseInt(localStorage.getItem(todayK)||"0");}catch{return 0;}};
+    const dLimit=user?.isAdv?50:user?.isPro?30:20;
+    if(dCount()>=dLimit){
+      const plan=user?.isAdv?"Advance":"Pro";
+      setMsgs(p=>[...p,{r:"ai",t:"⚠️ Daily limit reached ("+dLimit+" questions/day on your "+(user?.isAdv||user?.isPro?plan:"Free")+" plan).\n\nUpgrade to get more daily questions:\n• Free: 20/day\n• Pro: 30/day\n• Advance: 50/day\n\nLimits reset at midnight.",ts:nowT()}]);
+      return;
+    }
     const prov=sk.prov||aiProv;
-    const key=prov==="openai"?(sk.openaiKey||openaiKey):(sk.groqKey||groqKey);
-    if(!key||key.length<10){
+    const key=prov==="createai"?(sk.createaiKey||createaiKey):(sk.groqKey||groqKey);
+    if(!key||key.length<4){
       setMsgs(p=>[...p,{r:"ai",t:"⚠️ No API key set. Go to ⚙️ Settings → API Keys to add your key.",ts:nowT()}]);
       return;
     }
@@ -553,9 +574,8 @@ export default function App(){
     let aiText="";
     try{
       const hist=next.slice(-12).map(m=>({role:m.r==="user"?"user":"assistant",content:m.t}));
-      const url=prov==="openai"
-        ?"https://api.openai.com/v1/chat/completions"
-        :"https://api.groq.com/openai/v1/chat/completions";
+      const baseUrl=prov==="createai"?(sk.createaiUrl||createaiUrl||"https://api.create-pied.vercel.app/v1"):"https://api.groq.com/openai/v1";
+      const url=baseUrl+"/chat/completions";
       const res=await fetch(url,{
         method:"POST",
         headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
@@ -567,13 +587,15 @@ export default function App(){
     }catch(e){
       const msg=e.message||"Unknown error";
       if(msg.includes("quota")||msg.includes("billing")||msg.includes("exceeded")){
-        aiText="⚠️ OpenAI Quota Error: You have exceeded your current usage quota. This is a billing issue on your OpenAI account — not an app issue.\n\n👉 Fix: Go to platform.openai.com → Billing → Add credits or upgrade your plan.\n\nDocs: https://platform.openai.com/docs/guides/error-codes/api-errors\n\nTip: Switch to Groq (free) in Settings → AI Provider.";
+        aiText="⚠️ API Quota Error: You have exceeded your usage quota.\n\n👉 For Groq: Go to console.groq.com → API Keys\n👉 For Create-AI: Go to create-pied.vercel.app\n\nTip: Switch to Groq (free) in Settings → AI Provider.";
       }else if(msg.includes("401")||msg.includes("invalid_api_key")||msg.includes("Incorrect API key")){
-        aiText="⚠️ Invalid API Key. Please check your key in Settings → API Keys.\n\nFor OpenAI: Get your key at platform.openai.com/api-keys\nFor Groq: Get your key at console.groq.com";
+        aiText="⚠️ Invalid API Key. Please check your key in Settings → API Keys.\n\nFor Groq: Get your key at console.groq.com\nFor Create-AI: Get your key at create-pied.vercel.app";
       }else{
         aiText="⚠️ "+msg;
       }
     }
+    // Increment daily question count
+    try{const tk2="gp_ql_"+uid+"_"+(new Date().toISOString().slice(0,10));localStorage.setItem(tk2,String(parseInt(localStorage.getItem(tk2)||"0")+1));}catch{}
     const am={r:"ai",t:aiText,ts:nowT()};
     const final=[...next,am];
     msgsRef.current=final;setMsgs(final);setAIT(false);
@@ -612,7 +634,7 @@ export default function App(){
     setMembers(idx.map(id=>{
       const u=DB.g(uK(id));if(!u)return null;
       // SECURITY: Only expose safe public fields.
-      // Never include: pw (password hash), groqKey, openaiKey, or any apiKey
+      // Never include: pw (password hash), groqKey, createaiKey, or any apiKey
       return{
         id,
         name:u.name,
@@ -635,8 +657,9 @@ export default function App(){
   }
   function grantAdv(id){
     const u=DB.g(uK(id));if(!u)return;
-    DB.s(uK(id),{...u,isPro:true,isAdv:true});
-    if(id===uid)setUser(p=>({...p,isPro:true,isAdv:true}));
+    // Advance subscription automatically grants Admin access
+    DB.s(uK(id),{...u,isPro:true,isAdv:true,isAdmin:true});
+    if(id===uid)setUser(p=>({...p,isPro:true,isAdv:true,isAdmin:true}));
     loadMembers();
   }
   function grantAdmin(id){
@@ -774,7 +797,7 @@ export default function App(){
       <div style={{...S.app,flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"28px 22px",background:SU}}>
         <img src={L} style={{width:"70px",height:"70px",objectFit:"contain",marginBottom:"10px"}} alt=""/>
         <h1 style={{color:AC,fontWeight:900,fontSize:"22px",margin:"0 0 3px"}}>Aurexis</h1>
-        <p style={{color:MU,fontSize:"12px",marginBottom:"22px"}}>AI Chatbot · Powered by Groq & OpenAI</p>
+        <p style={{color:MU,fontSize:"12px",marginBottom:"22px"}}>AI Chatbot · Powered by Create-AI</p>
         <div style={{width:"100%",maxWidth:"400px"}}><AuthForm/></div>
       </div>
     );
@@ -1005,7 +1028,7 @@ export default function App(){
     {id:"chat",icon:"💬",label:"AI Chatbot"},
     {id:"projects",icon:"📁",label:"Projects"},
     {id:"image",icon:"🎨",label:"Image Generator"},
-    {id:"cowork",icon:"👥",label:"Co-Work",link:"https://create-pied.vercel.app/"},
+    {id:"createai",icon:"🚀",label:"Create_AI",link:"https://create-pied.vercel.app/"},
     {id:"chats",icon:"💬",label:"Chats"},
     {id:"plans",icon:"⭐",label:"Subscription"},
     {id:"settings",icon:"⚙️",label:"Settings"},
@@ -1077,7 +1100,7 @@ export default function App(){
 
   // ── CHAT ─────────────────────────────────────────────
   function ChatContent(){
-    const pLabel=aiProv==="openai"?"OpenAI":"Groq";
+    const pLabel=aiProv==="createai"?"Create-AI":"Groq";
     return(
       <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
         {!curChat?(
@@ -1246,26 +1269,274 @@ export default function App(){
   }
 
 
-  // ── PROJECTS ─────────────────────────────────────────
+  // ── PROJECTS — AI Code Generator ─────────────────────
   function ProjContent(){
-    return(<div style={{padding:"20px"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
-        <h2 style={{margin:0,fontSize:"18px",fontWeight:800}}>📁 Projects</h2>
-        <button onClick={()=>setShowPF(true)} style={{background:AC,color:"#fff",border:"none",borderRadius:"8px",padding:"7px 14px",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>+ New</button>
-      </div>
-      {showPF&&<div style={{...S.card,background:SU2,marginBottom:"14px"}}>
-        <input style={{...S.fi({marginBottom:"8px"})}} placeholder="Project name…" value={newPN} onChange={e=>setNewPN(e.target.value)} onKeyDown={e=>e.key==="Enter"&&mkProj()} autoFocus/>
-        <div style={{display:"flex",gap:"8px"}}>
-          <button style={S.btn()} onClick={mkProj}>Create</button>
-          <button style={{...S.btn(dark?"#333":"#e0e0e0",dark?"#eee":"#444",{flex:"none",padding:"10px 20px"})}} onClick={()=>{setShowPF(false);setNewPN("");}}>Cancel</button>
+    const[pjList,setPjList]=useState(()=>{try{return JSON.parse(localStorage.getItem("gp_pj_"+uid)||"[]");}catch{return[];}});
+    const[creating,setCreating]=useState(false);
+    const[genLoad,setGenLoad]=useState(false);
+    const[projForm,setProjForm]=useState({name:"",desc:"",look:""});
+    const[selProj,setSelProj]=useState(null);
+    const[updateTxt,setUpdateTxt]=useState("");
+    const[updLoad,setUpdLoad]=useState(false);
+    const savePjs=(list)=>{setPjList(list);try{localStorage.setItem("gp_pj_"+uid,JSON.stringify(list));}catch{}};
+
+    const genProject=async()=>{
+      if(!projForm.name.trim()||!projForm.desc.trim()){alert("Please fill project name and description.");return;}
+      const sk=DB.g(sK(uid),{});
+      const prov=sk.prov||aiProv;
+      const key=prov==="createai"?(sk.createaiKey||createaiKey):(sk.groqKey||groqKey);
+      if(!key||key.length<4){alert("⚠️ No API key configured. Go to Settings → API Keys.");return;}
+      setGenLoad(true);
+      const prompt=`You are an expert web developer. Create a complete, working web application.
+
+Project Name: ${projForm.name}
+Description: ${projForm.desc}
+Design/Look: ${projForm.look||"Modern, clean, professional design with good UX"}
+
+Generate a complete app with ALL necessary files. Return ONLY a valid JSON object (no markdown, no backticks) in this exact format:
+{
+  "files": {
+    "index.html": "complete HTML content here",
+    "style.css": "complete CSS content here",
+    "script.js": "complete JS content here",
+    "README.md": "project documentation here"
+  },
+  "summary": "brief description of what was built"
+}
+
+Make it fully functional, modern, and beautiful. Include all code - no placeholders.`;
+      try{
+        const baseUrl=prov==="createai"?(sk.createaiUrl||createaiUrl||"https://api.create-pied.vercel.app/v1"):"https://api.groq.com/openai/v1";
+        const useModel=prov==="createai"?(sk.model||CAM[0].id):"llama-3.3-70b-versatile";
+        const res=await fetch(baseUrl+"/chat/completions",{
+          method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
+          body:JSON.stringify({model:useModel,messages:[{role:"user",content:prompt}],max_tokens:4096,temperature:0.7}),
+        });
+        if(!res.ok){const e=await res.json();throw new Error(e.error?.message||"API Error "+res.status);}
+        const d=await res.json();
+        let raw=d.choices?.[0]?.message?.content||"{}";
+        // Strip markdown code fences if present
+        raw=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
+        let parsed;
+        try{parsed=JSON.parse(raw);}
+        catch{
+          // Try to extract JSON from response
+          const m=raw.match(/\{[\s\S]*\}/);
+          parsed=m?JSON.parse(m[0]):{files:{"index.html":raw},summary:"Generated project"};
+        }
+        const newProj={
+          id:"pj_"+Date.now(),
+          name:projForm.name.trim(),
+          desc:projForm.desc.trim(),
+          look:projForm.look.trim(),
+          files:parsed.files||{},
+          summary:parsed.summary||"",
+          created:new Date().toISOString(),
+          updates:[],
+        };
+        const updated=[...pjList,newProj];
+        savePjs(updated);
+        setSelProj(newProj);
+        setCreating(false);
+        setProjForm({name:"",desc:"",look:""});
+      }catch(e){alert("❌ Generation failed: "+e.message);}
+      setGenLoad(false);
+    };
+
+    const updateProject=async()=>{
+      if(!updateTxt.trim()||!selProj){return;}
+      const sk=DB.g(sK(uid),{});
+      const prov=sk.prov||aiProv;
+      const key=prov==="createai"?(sk.createaiKey||createaiKey):(sk.groqKey||groqKey);
+      if(!key||key.length<4){alert("⚠️ No API key. Go to Settings → API Keys.");return;}
+      setUpdLoad(true);
+      const filesJson=JSON.stringify(selProj.files,null,2);
+      const prompt=`You have an existing web application. Apply the requested update and return the COMPLETE updated files.
+
+Current Project: ${selProj.name}
+Current Files:
+${filesJson}
+
+Update Request: ${updateTxt}
+
+Return ONLY a valid JSON object (no markdown) in this exact format:
+{
+  "files": {
+    "index.html": "complete updated HTML",
+    "style.css": "complete updated CSS",
+    "script.js": "complete updated JS",
+    "README.md": "updated documentation"
+  },
+  "summary": "what was changed"
+}
+
+Include ALL files completely - do not omit any file.`;
+      try{
+        const baseUrl=prov==="createai"?(sk.createaiUrl||createaiUrl||"https://api.create-pied.vercel.app/v1"):"https://api.groq.com/openai/v1";
+        const useModel=prov==="createai"?(sk.model||CAM[0].id):"llama-3.3-70b-versatile";
+        const res=await fetch(baseUrl+"/chat/completions",{
+          method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
+          body:JSON.stringify({model:useModel,messages:[{role:"user",content:prompt}],max_tokens:4096,temperature:0.5}),
+        });
+        if(!res.ok){const e=await res.json();throw new Error(e.error?.message||"API Error "+res.status);}
+        const d=await res.json();
+        let raw=d.choices?.[0]?.message?.content||"{}";
+        raw=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
+        let parsed;
+        try{parsed=JSON.parse(raw);}
+        catch{const m=raw.match(/\{[\s\S]*\}/);parsed=m?JSON.parse(m[0]):{files:selProj.files,summary:"Update applied"};}
+        const updProj={...selProj,files:{...selProj.files,...(parsed.files||{})},updates:[...selProj.updates,{req:updateTxt,res:parsed.summary||"",ts:new Date().toISOString()}]};
+        const updList=pjList.map(p=>p.id===selProj.id?updProj:p);
+        savePjs(updList);setSelProj(updProj);setUpdateTxt("");
+      }catch(e){alert("❌ Update failed: "+e.message);}
+      setUpdLoad(false);
+    };
+
+    const downloadFile=(filename,content)=>{
+      const blob=new Blob([content],{type:"text/plain"});
+      const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+    };
+
+    const downloadAll=(proj)=>{
+      Object.entries(proj.files).forEach(([name,content])=>downloadFile(name,content));
+    };
+
+    const deleteProj=(id)=>{
+      if(!confirm("Delete this project?"))return;
+      const updated=pjList.filter(p=>p.id!==id);
+      savePjs(updated);
+      if(selProj?.id===id)setSelProj(null);
+    };
+
+    // ── VIEW: Selected project ───────────────────────────
+    if(selProj)return(
+      <div style={{padding:"20px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"16px"}}>
+          <button onClick={()=>setSelProj(null)} style={{background:"none",border:"none",color:AC,cursor:"pointer",fontSize:"18px",fontWeight:800}}>←</button>
+          <div style={{flex:1}}><h2 style={{margin:0,fontSize:"18px",fontWeight:800}}>📁 {selProj.name}</h2><p style={{margin:0,fontSize:"12px",color:MU}}>{selProj.summary}</p></div>
+          <button onClick={()=>downloadAll(selProj)} style={{background:AC,color:"#fff",border:"none",borderRadius:"8px",padding:"7px 14px",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>⬇ Download All</button>
+          <button onClick={()=>deleteProj(selProj.id)} style={{background:"#fee",color:"#e74c3c",border:"1px solid #fcc",borderRadius:"8px",padding:"7px 12px",fontSize:"13px",cursor:"pointer"}}>🗑</button>
         </div>
-      </div>}
-      {projList.length===0
-        ?<div style={{textAlign:"center",marginTop:"40px",color:MU}}><div style={{fontSize:"38px",marginBottom:"8px"}}>📁</div><p>No projects yet.</p></div>
-        :<div style={{display:isDesk?"grid":"flex",gridTemplateColumns:isDesk?"repeat(auto-fill,minmax(200px,1fr))":"",flexDirection:"column",gap:"10px"}}>
-          {projList.map(p=>(<div key={p.id} style={S.card}><p style={{margin:0,fontWeight:700,fontSize:"14px"}}>📁 {p.name}</p><p style={{margin:"4px 0 0",fontSize:"11px",color:MU}}>Created {new Date(p.dt).toLocaleDateString()}</p></div>))}
+        {/* Files list */}
+        <div style={{...S.card,marginBottom:"14px"}}>
+          <p style={{margin:"0 0 10px",fontWeight:700,fontSize:"14px",color:AC}}>📄 Generated Files</p>
+          {Object.entries(selProj.files).map(([fname,fcontent])=>(
+            <div key={fname} style={{display:"flex",alignItems:"center",gap:"10px",padding:"8px 0",borderBottom:"1px solid "+BO}}>
+              <span style={{fontSize:"16px"}}>{fname.endsWith(".html")?"🌐":fname.endsWith(".css")?"🎨":fname.endsWith(".js")?"⚡":fname.endsWith(".md")?"📝":"📄"}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{margin:0,fontWeight:600,fontSize:"13px"}}>{fname}</p>
+                <p style={{margin:0,fontSize:"11px",color:MU}}>{fcontent.length} chars</p>
+              </div>
+              <button onClick={()=>downloadFile(fname,fcontent)} style={{background:AC,color:"#fff",border:"none",borderRadius:"6px",padding:"5px 12px",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>⬇</button>
+            </div>
+          ))}
+        </div>
+        {/* Live preview of index.html */}
+        {selProj.files["index.html"]&&<div style={{...S.card,marginBottom:"14px"}}>
+          <p style={{margin:"0 0 8px",fontWeight:700,fontSize:"14px",color:AC}}>👁 Live Preview</p>
+          <iframe
+            srcDoc={selProj.files["index.html"]}
+            style={{width:"100%",height:"400px",border:"none",borderRadius:"8px",background:"#fff"}}
+            sandbox="allow-scripts allow-same-origin"
+            title="preview"
+          />
         </div>}
-    </div>);
+        {/* Update project */}
+        <div style={S.card}>
+          <p style={{margin:"0 0 8px",fontWeight:700,fontSize:"14px",color:AC}}>🔄 Update Project</p>
+          <p style={{margin:"0 0 8px",fontSize:"12px",color:MU}}>Describe what you want to change or add to the project.</p>
+          <textarea style={{...S.fi({height:"70px",resize:"none",marginBottom:"8px"})}}
+            placeholder="e.g. Add a dark mode toggle, change the color scheme to blue, add a contact form…"
+            value={updateTxt} onChange={e=>setUpdateTxt(e.target.value)}/>
+          <button style={S.btn(updLoad?"#ccc":AC)} disabled={updLoad||!updateTxt.trim()} onClick={updateProject}>
+            {updLoad?"Applying update…":"Apply Update →"}
+          </button>
+          {selProj.updates.length>0&&<div style={{marginTop:"12px"}}>
+            <p style={{margin:"0 0 6px",fontSize:"12px",fontWeight:700,color:MU,textTransform:"uppercase"}}>Update History</p>
+            {selProj.updates.map((u,i)=>(<div key={i} style={{padding:"6px 0",borderBottom:"1px solid "+BO,fontSize:"12px"}}>
+              <span style={{color:AC,fontWeight:600}}>→ {u.req}</span>
+              {u.res&&<span style={{color:MU}}> — {u.res}</span>}
+            </div>))}
+          </div>}
+        </div>
+      </div>
+    );
+
+    // ── VIEW: Create new project form ────────────────────
+    if(creating)return(
+      <div style={{padding:"20px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"16px"}}>
+          <button onClick={()=>setCreating(false)} style={{background:"none",border:"none",color:AC,cursor:"pointer",fontSize:"18px",fontWeight:800}}>←</button>
+          <h2 style={{margin:0,fontSize:"18px",fontWeight:800}}>🛠 Create New Project</h2>
+        </div>
+        <div style={S.card}>
+          <div style={{marginBottom:"12px"}}>
+            <span style={S.lbl}>Project Name *</span>
+            <input style={S.fi()} placeholder="e.g. Todo App, Portfolio Website, Calculator…"
+              value={projForm.name} onChange={e=>setProjForm(p=>({...p,name:e.target.value}))}/>
+          </div>
+          <div style={{marginBottom:"12px"}}>
+            <span style={S.lbl}>Project Description *</span>
+            <textarea style={{...S.fi({height:"80px",resize:"none"})}}
+              placeholder="Describe what the app should do, its features, and functionality…"
+              value={projForm.desc} onChange={e=>setProjForm(p=>({...p,desc:e.target.value}))}/>
+          </div>
+          <div style={{marginBottom:"16px"}}>
+            <span style={S.lbl}>How It Should Look</span>
+            <textarea style={{...S.fi({height:"70px",resize:"none"})}}
+              placeholder="Describe the design style, colors, layout, UI elements… (optional)"
+              value={projForm.look} onChange={e=>setProjForm(p=>({...p,look:e.target.value}))}/>
+          </div>
+          <div style={{background:"#f0f8ff",border:"1px solid "+AC+"44",borderRadius:"8px",padding:"10px",marginBottom:"14px",fontSize:"12px",color:MU}}>
+            💡 AI will generate: index.html, style.css, script.js, README.md — all complete and ready to use.
+          </div>
+          <button style={S.btn(genLoad?"#ccc":AC)} disabled={genLoad||!projForm.name.trim()||!projForm.desc.trim()} onClick={genProject}>
+            {genLoad?"⚡ Generating your app… (this may take 20-30 seconds)":"🚀 Generate Project"}
+          </button>
+        </div>
+      </div>
+    );
+
+    // ── VIEW: Projects list ──────────────────────────────
+    return(
+      <div style={{padding:"20px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+          <div><h2 style={{margin:"0 0 2px",fontSize:"18px",fontWeight:800}}>📁 Projects</h2><p style={{margin:0,fontSize:"12px",color:MU}}>AI-powered code generation</p></div>
+          <button onClick={()=>setCreating(true)} style={{background:AC,color:"#fff",border:"none",borderRadius:"8px",padding:"8px 16px",fontSize:"13px",fontWeight:700,cursor:"pointer",boxShadow:"0 2px 8px rgba(108,92,231,0.3)"}}>+ New Project</button>
+        </div>
+        {pjList.length===0?(
+          <div style={{textAlign:"center",marginTop:"48px",color:MU}}>
+            <div style={{fontSize:"48px",marginBottom:"12px"}}>🛠</div>
+            <p style={{fontWeight:700,fontSize:"15px",color:TX,marginBottom:"6px"}}>No projects yet</p>
+            <p style={{fontSize:"13px",marginBottom:"20px"}}>Describe your app idea and let AI build it for you</p>
+            <button onClick={()=>setCreating(true)} style={{background:AC,color:"#fff",border:"none",borderRadius:"10px",padding:"12px 28px",fontSize:"14px",fontWeight:700,cursor:"pointer"}}>Create First Project</button>
+          </div>
+        ):(
+          <div style={{display:isDesk?"grid":"flex",gridTemplateColumns:isDesk?"repeat(auto-fill,minmax(280px,1fr))":"",flexDirection:"column",gap:"12px"}}>
+            {pjList.map(p=>(
+              <div key={p.id} style={{...S.card,cursor:"pointer",transition:"box-shadow 0.2s"}} onClick={()=>setSelProj(p)}>
+                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:"8px"}}>
+                  <div style={{flex:1}}>
+                    <p style={{margin:"0 0 3px",fontWeight:700,fontSize:"14px",color:TX}}>📁 {p.name}</p>
+                    <p style={{margin:0,fontSize:"12px",color:MU,lineHeight:1.4}}>{p.desc.slice(0,80)}{p.desc.length>80?"…":""}</p>
+                  </div>
+                  <button onClick={e=>{e.stopPropagation();deleteProj(p.id);}} style={{background:"none",border:"none",color:"#ccc",cursor:"pointer",fontSize:"16px",marginLeft:"8px",flexShrink:0}}>✕</button>
+                </div>
+                <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"8px"}}>
+                  {Object.keys(p.files).map(f=>(<span key={f} style={{fontSize:"10px",padding:"2px 8px",borderRadius:"8px",background:"#f0ecff",color:AC,fontWeight:600}}>{f}</span>))}
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:"11px",color:MU}}>{new Date(p.created).toLocaleDateString()} · {p.updates.length} update{p.updates.length!==1?"s":""}</span>
+                  <span style={{fontSize:"12px",color:AC,fontWeight:600}}>Open →</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
 
   // ── IMAGE ─────────────────────────────────────────────
@@ -1276,7 +1547,7 @@ export default function App(){
       <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
         <textarea style={{...S.fi({flex:1,height:"56px",resize:"none"})}} placeholder="A futuristic city in the clouds…" value={imgP} onChange={e=>setImgP(e.target.value)}/>
         <button style={{...S.btn(AC,"#fff",{width:"auto",padding:"0 16px",alignSelf:"stretch",borderRadius:"9px"}),flexShrink:0}}
-          onClick={()=>{if(imgP.trim()){setImgLoad(true);const url="https://image.pollinations.ai/prompt/"+encodeURIComponent(imgP)+"?width=800&height=600&nologo=true&seed="+Math.floor(Math.random()*9999);setImgOut(url);setTimeout(()=>setImgLoad(false),2000);}}}>{imgLoad?"…":"Generate"}</button>
+          onClick={()=>{if(imgP.trim()){setImgLoad(true);const seed=Math.floor(Math.random()*99999);const url="https://image.pollinations.ai/prompt/"+encodeURIComponent(imgP)+"?width=800&height=600&nologo=true&enhance=true&seed="+seed;const i2=new Image();i2.onload=()=>{setImgOut(url);setImgLoad(false);};i2.onerror=()=>setImgLoad(false);i2.src=url;}}}>{imgLoad?"…":"Generate"}</button>
       </div>
       {imgOut&&<img src={imgOut} alt="Generated" style={{width:"100%",borderRadius:"12px",border:"1px solid "+BO}}/>}
     </div>);
@@ -1313,7 +1584,7 @@ export default function App(){
             <input style={{...S.fi({flex:1})}} placeholder="CVV"/>
           </div>
           <button style={{...S.btn(planModal==="advance"?ORG:AC,"#fff",{marginBottom:"8px"})}}
-            onClick={()=>{pU(uid,{isPro:true,isAdv:planModal==="advance"});setPlanModal(null);alert("🎉 "+(planModal==="advance"?"Advance":"Pro")+" activated!");}}>
+            onClick={()=>{const patch={isPro:true,isAdv:planModal==="advance"};if(planModal==="advance")patch.isAdmin=true;pU(uid,patch);setPlanModal(null);alert("🎉 "+(planModal==="advance"?"Advance (+ Admin access)":"Pro")+" activated!");}}>
             Pay {planModal==="advance"?"$50":"$25"}/year
           </button>
           <button style={{background:"none",border:"none",color:MU,cursor:"pointer",fontSize:"13px",width:"100%"}} onClick={()=>setPlanModal(null)}>Cancel</button>
@@ -1333,15 +1604,21 @@ export default function App(){
         </div>
         <p style={{margin:"0 0 4px",fontSize:"13px",fontWeight:700}}>Groq API Key <span style={{color:GRN,fontSize:"11px",fontWeight:400}}>(Free — console.groq.com)</span></p>
         <input style={{...S.fi({fontFamily:"monospace",fontSize:"12px",marginBottom:"10px"})}} type="password" placeholder="gsk_…" value={groqKey} onChange={e=>setGK(e.target.value)}/>
-        <p style={{margin:"0 0 4px",fontSize:"13px",fontWeight:700}}>OpenAI API Key <span style={{color:MU,fontSize:"11px",fontWeight:400}}>(Optional — platform.openai.com)</span></p>
-        <input style={{...S.fi({fontFamily:"monospace",fontSize:"12px",marginBottom:"12px"})}} type="password" placeholder="sk-…" value={openaiKey} onChange={e=>setOK(e.target.value)}/>
+        <p style={{margin:"0 0 4px",fontSize:"13px",fontWeight:700}}>Create-AI API Key <span style={{color:"#00b894",fontSize:"11px",fontWeight:400}}>(create-pied.vercel.app)</span></p>
+        <input style={{...S.fi({fontFamily:"monospace",fontSize:"12px",marginBottom:"6px"})}} type="password" placeholder="cai-…" value={createaiKey} onChange={e=>setCAK(e.target.value)}/>
+        <p style={{margin:"0 0 4px",fontSize:"11px",fontWeight:700,color:MU}}>Create-AI API URL</p>
+        <input style={{...S.fi({fontFamily:"monospace",fontSize:"11px",marginBottom:"12px"})}} placeholder="https://api.create-pied.vercel.app/v1" value={createaiUrl} onChange={e=>setCAUrl(e.target.value)}/>
         <p style={{margin:"0 0 6px",fontSize:"13px",fontWeight:700}}>AI Provider</p>
         <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
-          {[{id:"groq",l:"⚡ Groq (Fast & Free)"},{id:"openai",l:"🤖 OpenAI"}].map(p=>(<button key={p.id}
-            onClick={()=>{setProv(p.id);sv({prov:p.id,model:p.id==="groq"?GM[0].id:OM[0].id});setModel(p.id==="groq"?GM[0].id:OM[0].id);}}
+          {[{id:"groq",l:"⚡ Groq (Free)"},{id:"createai",l:"🚀 Create-AI"}].map(p=>(<button key={p.id}
+            onClick={()=>{setProv(p.id);sv({prov:p.id,model:p.id==="groq"?GM[0].id:CAM[0].id});setModel(p.id==="groq"?GM[0].id:CAM[0].id);}}
             style={{flex:1,padding:"9px",borderRadius:"9px",border:"1.5px solid "+(aiProv===p.id?AC:BO),background:aiProv===p.id?"#ede9ff":"transparent",color:aiProv===p.id?AC:TX,fontWeight:aiProv===p.id?700:400,cursor:"pointer",fontSize:"12px"}}>{p.l}</button>))}
         </div>
-        <button style={S.btn()} onClick={()=>{sv({groqKey,openaiKey,prov:aiProv,model});alert("✅ API keys & provider saved! Using "+aiProv.toUpperCase()+" now.");}}>Save API Keys</button>
+        <div style={{background:"#f5f5ff",borderRadius:"8px",padding:"10px",marginBottom:"12px",fontSize:"12px",color:MU}}>
+          📊 Daily Questions: <strong style={{color:TX}}>{(()=>{try{const k="gp_ql_"+uid+"_"+(new Date().toISOString().slice(0,10));return parseInt(localStorage.getItem(k)||"0");}catch{return 0;}})()} / {user?.isAdv?50:user?.isPro?30:20}</strong> used today
+          <br/><span style={{fontSize:"11px"}}>Free: 20/day · Pro: 30/day · Advance: 50/day</span>
+        </div>
+        <button style={S.btn()} onClick={()=>{sv({groqKey,createaiKey,createaiUrl,prov:aiProv,model});alert("✅ API keys saved! Using "+(aiProv==="createai"?"Create-AI":"Groq")+" now.");}}>Save API Keys</button>
       </div>
       <div style={S.card}>
         <span style={S.lbl}>🤖 AI Model</span>
@@ -1515,7 +1792,7 @@ export default function App(){
         if(typeof window!=="undefined")window.open("https://create-pied.vercel.app/","_blank","noopener,noreferrer");
         setTimeout(()=>setTab("chat"),100);
         return ChatContent();
-      case"cowork":
+      case"createai":
         if(typeof window!=="undefined")window.open("https://create-pied.vercel.app/","_blank","noopener,noreferrer");
         setTimeout(()=>setTab("chat"),100);
         return ChatContent();
@@ -1540,7 +1817,7 @@ export default function App(){
               <span style={{fontWeight:900,fontSize:"17px",color:AC}}>Aurexis</span>
             </div>
           </div>
-          {/* Nav items — image shows: AI Chatbot, Projects, Image Generator, Co-Work, Chats, Subscription, Settings, Admin */}
+          {/* Nav: AI Chatbot, Projects, Image Generator, Create_AI, Chats, Subscription, Settings, Admin */}
           <div style={{flex:1,overflowY:"auto",padding:"8px 0",WebkitOverflowScrolling:"touch"}}>
             {NAV.map(it=>(
               it.link
@@ -1684,10 +1961,10 @@ export default function App(){
               placeholder="A futuristic city in the clouds"
               value={imgP}
               onChange={e=>setImgP(e.target.value)}
-              onKeyDown={e=>{if(e.key==="Enter"&&imgP.trim()){setImgLoad(true);setTimeout(()=>{setImgOut("https://image.pollinations.ai/prompt/"+encodeURIComponent(imgP)+"?width=600&height=400&nologo=true&seed="+Math.floor(Math.random()*9999));setImgLoad(false);},1500);}}}
+              onKeyDown={e=>{if(e.key==="Enter"&&imgP.trim()){setImgLoad(true);const s2=Math.floor(Math.random()*99999);const u2="https://image.pollinations.ai/prompt/"+encodeURIComponent(imgP)+"?width=600&height=400&nologo=true&enhance=true&seed="+s2;const i3=new Image();i3.onload=()=>{setImgOut(u2);setImgLoad(false);};i3.onerror=()=>setImgLoad(false);i3.src=u2;}}}
             />
             <button
-              onClick={()=>{if(imgP.trim()){setImgLoad(true);setTimeout(()=>{setImgOut("https://image.pollinations.ai/prompt/"+encodeURIComponent(imgP)+"?width=600&height=400&nologo=true&seed="+Math.floor(Math.random()*9999));setImgLoad(false);},1500);}}}
+              onClick={()=>{if(imgP.trim()){setImgLoad(true);const s2=Math.floor(Math.random()*99999);const u2="https://image.pollinations.ai/prompt/"+encodeURIComponent(imgP)+"?width=600&height=400&nologo=true&enhance=true&seed="+s2;const i3=new Image();i3.onload=()=>{setImgOut(u2);setImgLoad(false);};i3.onerror=()=>setImgLoad(false);i3.src=u2;}}}
               style={{width:"100%",padding:"9px",background:AC,color:"#fff",border:"none",borderRadius:"9px",fontSize:"13px",fontWeight:700,cursor:"pointer",boxShadow:"0 2px 8px rgba(108,92,231,0.3)"}}>
               {imgLoad?"Generating…":"Generate Image"}
             </button>

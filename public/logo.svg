@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="triTop" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#80c8ff"/>
+      <stop offset="35%" stop-color="#4488ff"/>
+      <stop offset="100%" stop-color="#6020cc"/>
+    </linearGradient>
+    <linearGradient id="triFace" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5599ff"/>
+      <stop offset="60%" stop-color="#3355ee"/>
+      <stop offset="100%" stop-color="#7030bb"/>
+    </linearGradient>
+    <linearGradient id="orbitGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%"   stop-color="#2030aa" stop-opacity="0.4"/>
+      <stop offset="30%"  stop-color="#9966ff" stop-opacity="0.9"/>
+      <stop offset="60%"  stop-color="#6644dd" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#1020aa" stop-opacity="0.3"/>
+    </linearGradient>
+    <radialGradient id="bgGlow" cx="50%" cy="55%" r="45%">
+      <stop offset="0%" stop-color="#1840cc" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="starGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background glow circle -->
+  <ellipse cx="200" cy="220" rx="160" ry="140" fill="url(#bgGlow)"/>
+
+  <!-- Main triangle (A shape) with glow -->
+  <path d="M200 38 L348 298 L52 298 Z"
+        fill="url(#triTop)" filter="url(#glow)"/>
+
+  <!-- Left face slightly lighter -->
+  <path d="M200 38 L52 298 L126 298 L200 108 Z"
+        fill="rgba(100,170,255,0.18)"/>
+
+  <!-- Top highlight shine -->
+  <path d="M200 38 L224 90 L200 78 L176 90 Z"
+        fill="rgba(255,255,255,0.28)"/>
+
+  <!-- Inner A cutout (the hollow part) -->
+  <path d="M200 95 L148 268 L252 268 Z"
+        fill="rgba(3,6,36,0.85)"/>
+
+  <!-- A crossbar cutout -->
+  <rect x="160" y="230" width="80" height="16" rx="3"
+        fill="rgba(3,6,36,0.85)"/>
+
+  <!-- Orbital ring -->
+  <ellipse cx="200" cy="255" rx="162" ry="54"
+        fill="none" stroke="url(#orbitGrad)" stroke-width="10"
+        stroke-linecap="round"
+        transform="rotate(-20 200 255)"/>
+
+  <!-- Orbit shine highlight (the bright part of the ring) -->
+  <path d="M 68,210 Q 118,172 194,182"
+        fill="none"
+        stroke="rgba(190,220,255,0.72)"
+        stroke-width="5.5"
+        stroke-linecap="round"/>
+
+  <!-- Star sparkle at top — 4-point -->
+  <g filter="url(#starGlow)">
+    <path d="M200 22 L204 34 L216 34 L207 41 L211 53 L200 46 L189 53 L193 41 L184 34 L196 34 Z"
+          fill="white" opacity="0.98"/>
+    <circle cx="200" cy="32" r="4" fill="white" opacity="0.9"/>
+  </g>
+
+  <!-- Small decorative sparkles -->
+  <circle cx="308" cy="108" r="2.5" fill="rgba(160,210,255,0.75)"/>
+  <circle cx="100" cy="128" r="1.8" fill="rgba(160,210,255,0.55)"/>
+  <circle cx="330" cy="195" r="1.5" fill="rgba(180,220,255,0.6)"/>
+  <circle cx="78"  cy="195" r="2"   fill="rgba(160,200,255,0.45)"/>
+
+  <!-- Edge glow lines -->
+  <path d="M200 38 L52 298" stroke="rgba(80,160,255,0.2)" stroke-width="2" fill="none"/>
+  <path d="M200 38 L348 298" stroke="rgba(80,140,255,0.15)" stroke-width="1.5" fill="none"/>
+</svg>
