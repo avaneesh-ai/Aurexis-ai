@@ -388,6 +388,14 @@ export default function App(){
   const[certLoad,setCertLoad]=useState(false);
   const[gIdx,setGIdx]=useState(0);
   const[dqErr,setDqErr]=useState("");
+  // Projects state — at App level so hooks are stable
+  const[pjList,setPjList]=useState([]);
+  const[pjCreating,setPjCreating]=useState(false);
+  const[pjGenLoad,setPjGenLoad]=useState(false);
+  const[pjForm,setPjForm]=useState({name:"",desc:"",look:""});
+  const[pjSel,setPjSel]=useState(null);
+  const[pjUpdTxt,setPjUpdTxt]=useState("");
+  const[pjUpdLoad,setPjUpdLoad]=useState(false);
 
   const botRef=useRef(null);
   const recRef=useRef(null);
@@ -454,6 +462,8 @@ export default function App(){
     if(sk.model)setModel(sk.model);
     if(sk.dark!==undefined)setDark(sk.dark);
     if(sk.voice!==undefined)setVO(sk.voice);
+    // Load project list for this user
+    try{const pjs=JSON.parse(localStorage.getItem("gp_pj_"+id)||"[]");setPjList(Array.isArray(pjs)?pjs:[]);}catch{setPjList([]);}
     // Apply device preference: user-chosen OR window size
     const dev=u.dev||"mobile";
     if(dev==="desktop")setIsDesk(true);
@@ -519,7 +529,7 @@ export default function App(){
     setGK("");setOK("");
     setUid(null);setUser(null);
     setChats({});setProjs({});setMsgs([]);setCurChat(null);
-    setCertUrl("");setInp("");
+    setCertUrl("");setInp("");setPjList([]);setPjSel(null);setPjCreating(false);
     setForm({email:"",pw:"",name:"",mob:"",dev:"mobile"});
     setRS(1);setExSc(null);
     setPage("login");
@@ -1270,267 +1280,180 @@ export default function App(){
 
 
   // ── PROJECTS — AI Code Generator ─────────────────────
+  // State is at App level (see top of App) to follow React rules of hooks
+  const savePjs=(list)=>{setPjList(list);try{localStorage.setItem("gp_pj_"+uid,JSON.stringify(list));}catch{}};
+
+  const genProject=async()=>{
+    if(!pjForm.name.trim()||!pjForm.desc.trim()){alert("Please fill project name and description.");return;}
+    const sk=DB.g(sK(uid),{});
+    const prov=sk.prov||aiProv;
+    const key=prov==="createai"?(sk.createaiKey||createaiKey):(sk.groqKey||groqKey);
+    if(!key||key.length<4){alert("⚠️ No API key. Go to Settings → API Keys.");return;}
+    setPjGenLoad(true);
+    const prompt=`You are an expert full-stack web developer. Create a complete working web app.
+
+Project Name: ${pjForm.name}
+Description: ${pjForm.desc}
+Design: ${pjForm.look||"Modern, clean, professional with good UX, purple/blue color scheme"}
+
+Return ONLY a raw JSON object (no markdown, no backticks, no explanation) exactly like this:
+{"files":{"index.html":"full html here","style.css":"full css here","script.js":"full js here","README.md":"description here"},"summary":"one line description"}
+
+Every file must be complete and working. Use inline styles or the style.css file. Make it beautiful.`;
+    try{
+      const sk2=DB.g(sK(uid),{});
+      const prov2=sk2.prov||aiProv;
+      const key2=prov2==="createai"?(sk2.createaiKey||createaiKey):(sk2.groqKey||groqKey);
+      const baseUrl=prov2==="createai"?(sk2.createaiUrl||createaiUrl||"https://api.create-pied.vercel.app/v1"):"https://api.groq.com/openai/v1";
+      const useModel=prov2==="createai"?(sk2.model||"createai-pro"):"llama-3.3-70b-versatile";
+      const res=await fetch(baseUrl+"/chat/completions",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+key2},
+        body:JSON.stringify({model:useModel,messages:[{role:"user",content:prompt}],max_tokens:4096,temperature:0.7}),
+      });
+      if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||"API Error "+res.status);}
+      const d=await res.json();
+      let raw=d.choices?.[0]?.message?.content||"{}";
+      raw=raw.replace(/^```json\s*/,"").replace(/^```\s*/,"").replace(/\s*```$/,"").trim();
+      let parsed;
+      try{parsed=JSON.parse(raw);}
+      catch{const m=raw.match(/\{[\s\S]*\}/);parsed=m?JSON.parse(m[0]):{files:{"index.html":raw},summary:"Generated project"};}
+      const newProj={
+        id:"pj_"+Date.now(),
+        name:pjForm.name.trim(),
+        desc:pjForm.desc.trim(),
+        look:pjForm.look.trim(),
+        files:parsed.files||{"index.html":raw},
+        summary:parsed.summary||"",
+        created:new Date().toISOString(),
+        updates:[],
+      };
+      const updated=[...pjList,newProj];
+      savePjs(updated);setPjSel(newProj);setPjCreating(false);setPjForm({name:"",desc:"",look:""});
+    }catch(e){alert("❌ Generation failed: "+e.message);}
+    setPjGenLoad(false);
+  };
+
+  const updateProject=async()=>{
+    if(!pjUpdTxt.trim()||!pjSel)return;
+    const sk=DB.g(sK(uid),{});
+    const prov=sk.prov||aiProv;
+    const key=prov==="createai"?(sk.createaiKey||createaiKey):(sk.groqKey||groqKey);
+    if(!key||key.length<4){alert("⚠️ No API key. Go to Settings → API Keys.");return;}
+    setPjUpdLoad(true);
+    const prompt=`Update this web application as requested.
+
+Current files:
+${Object.entries(pjSel.files).map(([n,c])=>`=== ${n} ===\n${c.slice(0,1500)}`).join("\n\n")}
+
+Update request: ${pjUpdTxt}
+
+Return ONLY a raw JSON object (no markdown):
+{"files":{"index.html":"complete updated html","style.css":"complete updated css","script.js":"complete updated js","README.md":"updated docs"},"summary":"what changed"}`;
+    try{
+      const sk2=DB.g(sK(uid),{});
+      const prov2=sk2.prov||aiProv;
+      const baseUrl=prov2==="createai"?(sk2.createaiUrl||createaiUrl||"https://api.create-pied.vercel.app/v1"):"https://api.groq.com/openai/v1";
+      const useModel=prov2==="createai"?(sk2.model||"createai-pro"):"llama-3.3-70b-versatile";
+      const key2=prov2==="createai"?(sk2.createaiKey||createaiKey):(sk2.groqKey||groqKey);
+      const res=await fetch(baseUrl+"/chat/completions",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+key2},
+        body:JSON.stringify({model:useModel,messages:[{role:"user",content:prompt}],max_tokens:4096}),
+      });
+      if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||"API Error "+res.status);}
+      const d=await res.json();
+      let raw=d.choices?.[0]?.message?.content||"{}";
+      raw=raw.replace(/^```json\s*/,"").replace(/^```\s*/,"").replace(/\s*```$/,"").trim();
+      let parsed;
+      try{parsed=JSON.parse(raw);}catch{const m=raw.match(/\{[\s\S]*\}/);parsed=m?JSON.parse(m[0]):{files:pjSel.files,summary:"Updated"};}
+      const up={...pjSel,files:{...pjSel.files,...(parsed.files||{})},updates:[...pjSel.updates,{req:pjUpdTxt,res:parsed.summary||"",ts:new Date().toISOString()}]};
+      const ul=pjList.map(p=>p.id===pjSel.id?up:p);
+      savePjs(ul);setPjSel(up);setPjUpdTxt("");
+    }catch(e){alert("❌ Update failed: "+e.message);}
+    setPjUpdLoad(false);
+  };
+
+  const dlFile=(fname,content)=>{const b=new Blob([content],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=fname;a.click();};
+  const dlAll=(proj)=>Object.entries(proj.files).forEach(([n,c])=>dlFile(n,c));
+  const delProj=(id)=>{if(!confirm("Delete this project?"))return;const ul=pjList.filter(p=>p.id!==id);savePjs(ul);if(pjSel?.id===id)setPjSel(null);};
+
   function ProjContent(){
-    const[pjList,setPjList]=useState(()=>{try{return JSON.parse(localStorage.getItem("gp_pj_"+uid)||"[]");}catch{return[];}});
-    const[creating,setCreating]=useState(false);
-    const[genLoad,setGenLoad]=useState(false);
-    const[projForm,setProjForm]=useState({name:"",desc:"",look:""});
-    const[selProj,setSelProj]=useState(null);
-    const[updateTxt,setUpdateTxt]=useState("");
-    const[updLoad,setUpdLoad]=useState(false);
-    const savePjs=(list)=>{setPjList(list);try{localStorage.setItem("gp_pj_"+uid,JSON.stringify(list));}catch{}};
-
-    const genProject=async()=>{
-      if(!projForm.name.trim()||!projForm.desc.trim()){alert("Please fill project name and description.");return;}
-      const sk=DB.g(sK(uid),{});
-      const prov=sk.prov||aiProv;
-      const key=prov==="createai"?(sk.createaiKey||createaiKey):(sk.groqKey||groqKey);
-      if(!key||key.length<4){alert("⚠️ No API key configured. Go to Settings → API Keys.");return;}
-      setGenLoad(true);
-      const prompt=`You are an expert web developer. Create a complete, working web application.
-
-Project Name: ${projForm.name}
-Description: ${projForm.desc}
-Design/Look: ${projForm.look||"Modern, clean, professional design with good UX"}
-
-Generate a complete app with ALL necessary files. Return ONLY a valid JSON object (no markdown, no backticks) in this exact format:
-{
-  "files": {
-    "index.html": "complete HTML content here",
-    "style.css": "complete CSS content here",
-    "script.js": "complete JS content here",
-    "README.md": "project documentation here"
-  },
-  "summary": "brief description of what was built"
-}
-
-Make it fully functional, modern, and beautiful. Include all code - no placeholders.`;
-      try{
-        const baseUrl=prov==="createai"?(sk.createaiUrl||createaiUrl||"https://api.create-pied.vercel.app/v1"):"https://api.groq.com/openai/v1";
-        const useModel=prov==="createai"?(sk.model||CAM[0].id):"llama-3.3-70b-versatile";
-        const res=await fetch(baseUrl+"/chat/completions",{
-          method:"POST",
-          headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
-          body:JSON.stringify({model:useModel,messages:[{role:"user",content:prompt}],max_tokens:4096,temperature:0.7}),
-        });
-        if(!res.ok){const e=await res.json();throw new Error(e.error?.message||"API Error "+res.status);}
-        const d=await res.json();
-        let raw=d.choices?.[0]?.message?.content||"{}";
-        // Strip markdown code fences if present
-        raw=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
-        let parsed;
-        try{parsed=JSON.parse(raw);}
-        catch{
-          // Try to extract JSON from response
-          const m=raw.match(/\{[\s\S]*\}/);
-          parsed=m?JSON.parse(m[0]):{files:{"index.html":raw},summary:"Generated project"};
-        }
-        const newProj={
-          id:"pj_"+Date.now(),
-          name:projForm.name.trim(),
-          desc:projForm.desc.trim(),
-          look:projForm.look.trim(),
-          files:parsed.files||{},
-          summary:parsed.summary||"",
-          created:new Date().toISOString(),
-          updates:[],
-        };
-        const updated=[...pjList,newProj];
-        savePjs(updated);
-        setSelProj(newProj);
-        setCreating(false);
-        setProjForm({name:"",desc:"",look:""});
-      }catch(e){alert("❌ Generation failed: "+e.message);}
-      setGenLoad(false);
-    };
-
-    const updateProject=async()=>{
-      if(!updateTxt.trim()||!selProj){return;}
-      const sk=DB.g(sK(uid),{});
-      const prov=sk.prov||aiProv;
-      const key=prov==="createai"?(sk.createaiKey||createaiKey):(sk.groqKey||groqKey);
-      if(!key||key.length<4){alert("⚠️ No API key. Go to Settings → API Keys.");return;}
-      setUpdLoad(true);
-      const filesJson=JSON.stringify(selProj.files,null,2);
-      const prompt=`You have an existing web application. Apply the requested update and return the COMPLETE updated files.
-
-Current Project: ${selProj.name}
-Current Files:
-${filesJson}
-
-Update Request: ${updateTxt}
-
-Return ONLY a valid JSON object (no markdown) in this exact format:
-{
-  "files": {
-    "index.html": "complete updated HTML",
-    "style.css": "complete updated CSS",
-    "script.js": "complete updated JS",
-    "README.md": "updated documentation"
-  },
-  "summary": "what was changed"
-}
-
-Include ALL files completely - do not omit any file.`;
-      try{
-        const baseUrl=prov==="createai"?(sk.createaiUrl||createaiUrl||"https://api.create-pied.vercel.app/v1"):"https://api.groq.com/openai/v1";
-        const useModel=prov==="createai"?(sk.model||CAM[0].id):"llama-3.3-70b-versatile";
-        const res=await fetch(baseUrl+"/chat/completions",{
-          method:"POST",
-          headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
-          body:JSON.stringify({model:useModel,messages:[{role:"user",content:prompt}],max_tokens:4096,temperature:0.5}),
-        });
-        if(!res.ok){const e=await res.json();throw new Error(e.error?.message||"API Error "+res.status);}
-        const d=await res.json();
-        let raw=d.choices?.[0]?.message?.content||"{}";
-        raw=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
-        let parsed;
-        try{parsed=JSON.parse(raw);}
-        catch{const m=raw.match(/\{[\s\S]*\}/);parsed=m?JSON.parse(m[0]):{files:selProj.files,summary:"Update applied"};}
-        const updProj={...selProj,files:{...selProj.files,...(parsed.files||{})},updates:[...selProj.updates,{req:updateTxt,res:parsed.summary||"",ts:new Date().toISOString()}]};
-        const updList=pjList.map(p=>p.id===selProj.id?updProj:p);
-        savePjs(updList);setSelProj(updProj);setUpdateTxt("");
-      }catch(e){alert("❌ Update failed: "+e.message);}
-      setUpdLoad(false);
-    };
-
-    const downloadFile=(filename,content)=>{
-      const blob=new Blob([content],{type:"text/plain"});
-      const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;a.click();
-    };
-
-    const downloadAll=(proj)=>{
-      Object.entries(proj.files).forEach(([name,content])=>downloadFile(name,content));
-    };
-
-    const deleteProj=(id)=>{
-      if(!confirm("Delete this project?"))return;
-      const updated=pjList.filter(p=>p.id!==id);
-      savePjs(updated);
-      if(selProj?.id===id)setSelProj(null);
-    };
-
-    // ── VIEW: Selected project ───────────────────────────
-    if(selProj)return(
+    // Selected project view
+    if(pjSel)return(
       <div style={{padding:"20px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"16px"}}>
-          <button onClick={()=>setSelProj(null)} style={{background:"none",border:"none",color:AC,cursor:"pointer",fontSize:"18px",fontWeight:800}}>←</button>
-          <div style={{flex:1}}><h2 style={{margin:0,fontSize:"18px",fontWeight:800}}>📁 {selProj.name}</h2><p style={{margin:0,fontSize:"12px",color:MU}}>{selProj.summary}</p></div>
-          <button onClick={()=>downloadAll(selProj)} style={{background:AC,color:"#fff",border:"none",borderRadius:"8px",padding:"7px 14px",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>⬇ Download All</button>
-          <button onClick={()=>deleteProj(selProj.id)} style={{background:"#fee",color:"#e74c3c",border:"1px solid #fcc",borderRadius:"8px",padding:"7px 12px",fontSize:"13px",cursor:"pointer"}}>🗑</button>
+          <button onClick={()=>setPjSel(null)} style={{background:"none",border:"none",color:AC,cursor:"pointer",fontSize:"18px",fontWeight:800}}>←</button>
+          <div style={{flex:1}}><h2 style={{margin:"0 0 2px",fontSize:"18px",fontWeight:800}}>📁 {pjSel.name}</h2><p style={{margin:0,fontSize:"12px",color:MU}}>{pjSel.summary}</p></div>
+          <button onClick={()=>dlAll(pjSel)} style={{background:AC,color:"#fff",border:"none",borderRadius:"8px",padding:"7px 14px",fontSize:"13px",fontWeight:700,cursor:"pointer"}}>⬇ All</button>
+          <button onClick={()=>delProj(pjSel.id)} style={{background:"#fee",color:RD,border:"1px solid #fcc",borderRadius:"8px",padding:"7px 12px",fontSize:"13px",cursor:"pointer"}}>🗑</button>
         </div>
-        {/* Files list */}
+        {/* Files */}
         <div style={{...S.card,marginBottom:"14px"}}>
           <p style={{margin:"0 0 10px",fontWeight:700,fontSize:"14px",color:AC}}>📄 Generated Files</p>
-          {Object.entries(selProj.files).map(([fname,fcontent])=>(
+          {Object.entries(pjSel.files).map(([fname,fcontent])=>(
             <div key={fname} style={{display:"flex",alignItems:"center",gap:"10px",padding:"8px 0",borderBottom:"1px solid "+BO}}>
-              <span style={{fontSize:"16px"}}>{fname.endsWith(".html")?"🌐":fname.endsWith(".css")?"🎨":fname.endsWith(".js")?"⚡":fname.endsWith(".md")?"📝":"📄"}</span>
-              <div style={{flex:1,minWidth:0}}>
-                <p style={{margin:0,fontWeight:600,fontSize:"13px"}}>{fname}</p>
-                <p style={{margin:0,fontSize:"11px",color:MU}}>{fcontent.length} chars</p>
-              </div>
-              <button onClick={()=>downloadFile(fname,fcontent)} style={{background:AC,color:"#fff",border:"none",borderRadius:"6px",padding:"5px 12px",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>⬇</button>
+              <span style={{fontSize:"16px"}}>{fname.endsWith(".html")?"🌐":fname.endsWith(".css")?"🎨":fname.endsWith(".js")?"⚡":"📝"}</span>
+              <div style={{flex:1}}><p style={{margin:0,fontWeight:600,fontSize:"13px"}}>{fname}</p><p style={{margin:0,fontSize:"11px",color:MU}}>{fcontent.length.toLocaleString()} chars</p></div>
+              <button onClick={()=>dlFile(fname,fcontent)} style={{background:AC,color:"#fff",border:"none",borderRadius:"6px",padding:"5px 12px",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>⬇</button>
             </div>
           ))}
         </div>
-        {/* Live preview of index.html */}
-        {selProj.files["index.html"]&&<div style={{...S.card,marginBottom:"14px"}}>
+        {/* Live preview */}
+        {pjSel.files["index.html"]&&<div style={{...S.card,marginBottom:"14px"}}>
           <p style={{margin:"0 0 8px",fontWeight:700,fontSize:"14px",color:AC}}>👁 Live Preview</p>
-          <iframe
-            srcDoc={selProj.files["index.html"]}
-            style={{width:"100%",height:"400px",border:"none",borderRadius:"8px",background:"#fff"}}
-            sandbox="allow-scripts allow-same-origin"
-            title="preview"
-          />
+          <iframe srcDoc={pjSel.files["index.html"]} style={{width:"100%",height:"380px",border:"none",borderRadius:"8px",background:"#fff"}} sandbox="allow-scripts allow-same-origin" title="preview"/>
         </div>}
-        {/* Update project */}
+        {/* Update */}
         <div style={S.card}>
-          <p style={{margin:"0 0 8px",fontWeight:700,fontSize:"14px",color:AC}}>🔄 Update Project</p>
-          <p style={{margin:"0 0 8px",fontSize:"12px",color:MU}}>Describe what you want to change or add to the project.</p>
-          <textarea style={{...S.fi({height:"70px",resize:"none",marginBottom:"8px"})}}
-            placeholder="e.g. Add a dark mode toggle, change the color scheme to blue, add a contact form…"
-            value={updateTxt} onChange={e=>setUpdateTxt(e.target.value)}/>
-          <button style={S.btn(updLoad?"#ccc":AC)} disabled={updLoad||!updateTxt.trim()} onClick={updateProject}>
-            {updLoad?"Applying update…":"Apply Update →"}
-          </button>
-          {selProj.updates.length>0&&<div style={{marginTop:"12px"}}>
-            <p style={{margin:"0 0 6px",fontSize:"12px",fontWeight:700,color:MU,textTransform:"uppercase"}}>Update History</p>
-            {selProj.updates.map((u,i)=>(<div key={i} style={{padding:"6px 0",borderBottom:"1px solid "+BO,fontSize:"12px"}}>
-              <span style={{color:AC,fontWeight:600}}>→ {u.req}</span>
-              {u.res&&<span style={{color:MU}}> — {u.res}</span>}
-            </div>))}
-          </div>}
+          <p style={{margin:"0 0 4px",fontWeight:700,fontSize:"14px",color:AC}}>🔄 Update Project</p>
+          <p style={{margin:"0 0 8px",fontSize:"12px",color:MU}}>Describe what to change — only available after project is created.</p>
+          <textarea style={{...S.fi({height:"66px",resize:"none",marginBottom:"8px"})}} placeholder="e.g. Add dark mode, change colors to blue, add a search bar…" value={pjUpdTxt} onChange={e=>setPjUpdTxt(e.target.value)}/>
+          <button style={S.btn(pjUpdLoad?"#ccc":AC)} disabled={pjUpdLoad||!pjUpdTxt.trim()} onClick={updateProject}>{pjUpdLoad?"Applying update…":"Apply Update →"}</button>
+          {pjSel.updates.length>0&&<div style={{marginTop:"10px"}}>{pjSel.updates.map((u,i)=>(<div key={i} style={{padding:"5px 0",borderBottom:"1px solid "+BO,fontSize:"12px"}}><span style={{color:AC,fontWeight:600}}>→ {u.req}</span>{u.res&&<span style={{color:MU}}> — {u.res}</span>}</div>))}</div>}
         </div>
       </div>
     );
-
-    // ── VIEW: Create new project form ────────────────────
-    if(creating)return(
+    // Create form
+    if(pjCreating)return(
       <div style={{padding:"20px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"16px"}}>
-          <button onClick={()=>setCreating(false)} style={{background:"none",border:"none",color:AC,cursor:"pointer",fontSize:"18px",fontWeight:800}}>←</button>
+          <button onClick={()=>setPjCreating(false)} style={{background:"none",border:"none",color:AC,cursor:"pointer",fontSize:"18px",fontWeight:800}}>←</button>
           <h2 style={{margin:0,fontSize:"18px",fontWeight:800}}>🛠 Create New Project</h2>
         </div>
         <div style={S.card}>
-          <div style={{marginBottom:"12px"}}>
-            <span style={S.lbl}>Project Name *</span>
-            <input style={S.fi()} placeholder="e.g. Todo App, Portfolio Website, Calculator…"
-              value={projForm.name} onChange={e=>setProjForm(p=>({...p,name:e.target.value}))}/>
-          </div>
-          <div style={{marginBottom:"12px"}}>
-            <span style={S.lbl}>Project Description *</span>
-            <textarea style={{...S.fi({height:"80px",resize:"none"})}}
-              placeholder="Describe what the app should do, its features, and functionality…"
-              value={projForm.desc} onChange={e=>setProjForm(p=>({...p,desc:e.target.value}))}/>
-          </div>
-          <div style={{marginBottom:"16px"}}>
-            <span style={S.lbl}>How It Should Look</span>
-            <textarea style={{...S.fi({height:"70px",resize:"none"})}}
-              placeholder="Describe the design style, colors, layout, UI elements… (optional)"
-              value={projForm.look} onChange={e=>setProjForm(p=>({...p,look:e.target.value}))}/>
-          </div>
-          <div style={{background:"#f0f8ff",border:"1px solid "+AC+"44",borderRadius:"8px",padding:"10px",marginBottom:"14px",fontSize:"12px",color:MU}}>
-            💡 AI will generate: index.html, style.css, script.js, README.md — all complete and ready to use.
-          </div>
-          <button style={S.btn(genLoad?"#ccc":AC)} disabled={genLoad||!projForm.name.trim()||!projForm.desc.trim()} onClick={genProject}>
-            {genLoad?"⚡ Generating your app… (this may take 20-30 seconds)":"🚀 Generate Project"}
-          </button>
+          <div style={{marginBottom:"12px"}}><span style={S.lbl}>Project Name *</span><input style={S.fi()} placeholder="e.g. Todo App, Portfolio, Calculator…" value={pjForm.name} onChange={e=>setPjForm(p=>({...p,name:e.target.value}))}/></div>
+          <div style={{marginBottom:"12px"}}><span style={S.lbl}>Project Description *</span><textarea style={{...S.fi({height:"78px",resize:"none"})}} placeholder="What the app should do, its features and functionality…" value={pjForm.desc} onChange={e=>setPjForm(p=>({...p,desc:e.target.value}))}/></div>
+          <div style={{marginBottom:"14px"}}><span style={S.lbl}>How It Should Look</span><textarea style={{...S.fi({height:"66px",resize:"none"})}} placeholder="Design style, colors, layout… (optional)" value={pjForm.look} onChange={e=>setPjForm(p=>({...p,look:e.target.value}))}/></div>
+          <div style={{background:"#f0f4ff",border:"1px solid "+AC+"33",borderRadius:"8px",padding:"10px",marginBottom:"12px",fontSize:"12px",color:MU}}>💡 AI generates: index.html, style.css, script.js, README.md — complete and ready to use.</div>
+          <button style={S.btn(pjGenLoad?"#ccc":AC)} disabled={pjGenLoad||!pjForm.name.trim()||!pjForm.desc.trim()} onClick={genProject}>{pjGenLoad?"⚡ Generating… (may take 30 seconds)":"🚀 Generate Project"}</button>
         </div>
       </div>
     );
-
-    // ── VIEW: Projects list ──────────────────────────────
+    // List view
     return(
       <div style={{padding:"20px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
           <div><h2 style={{margin:"0 0 2px",fontSize:"18px",fontWeight:800}}>📁 Projects</h2><p style={{margin:0,fontSize:"12px",color:MU}}>AI-powered code generation</p></div>
-          <button onClick={()=>setCreating(true)} style={{background:AC,color:"#fff",border:"none",borderRadius:"8px",padding:"8px 16px",fontSize:"13px",fontWeight:700,cursor:"pointer",boxShadow:"0 2px 8px rgba(108,92,231,0.3)"}}>+ New Project</button>
+          <button onClick={()=>setPjCreating(true)} style={{background:AC,color:"#fff",border:"none",borderRadius:"8px",padding:"8px 16px",fontSize:"13px",fontWeight:700,cursor:"pointer",boxShadow:"0 2px 8px rgba(108,92,231,0.3)"}}>+ New Project</button>
         </div>
         {pjList.length===0?(
           <div style={{textAlign:"center",marginTop:"48px",color:MU}}>
             <div style={{fontSize:"48px",marginBottom:"12px"}}>🛠</div>
             <p style={{fontWeight:700,fontSize:"15px",color:TX,marginBottom:"6px"}}>No projects yet</p>
-            <p style={{fontSize:"13px",marginBottom:"20px"}}>Describe your app idea and let AI build it for you</p>
-            <button onClick={()=>setCreating(true)} style={{background:AC,color:"#fff",border:"none",borderRadius:"10px",padding:"12px 28px",fontSize:"14px",fontWeight:700,cursor:"pointer"}}>Create First Project</button>
+            <p style={{fontSize:"13px",marginBottom:"20px"}}>Describe your app and let AI build it</p>
+            <button onClick={()=>setPjCreating(true)} style={{background:AC,color:"#fff",border:"none",borderRadius:"10px",padding:"12px 28px",fontSize:"14px",fontWeight:700,cursor:"pointer"}}>Create First Project</button>
           </div>
         ):(
           <div style={{display:isDesk?"grid":"flex",gridTemplateColumns:isDesk?"repeat(auto-fill,minmax(280px,1fr))":"",flexDirection:"column",gap:"12px"}}>
             {pjList.map(p=>(
-              <div key={p.id} style={{...S.card,cursor:"pointer",transition:"box-shadow 0.2s"}} onClick={()=>setSelProj(p)}>
+              <div key={p.id} style={{...S.card,cursor:"pointer",transition:"box-shadow 0.15s"}} onClick={()=>setPjSel(p)}>
                 <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:"8px"}}>
-                  <div style={{flex:1}}>
-                    <p style={{margin:"0 0 3px",fontWeight:700,fontSize:"14px",color:TX}}>📁 {p.name}</p>
-                    <p style={{margin:0,fontSize:"12px",color:MU,lineHeight:1.4}}>{p.desc.slice(0,80)}{p.desc.length>80?"…":""}</p>
-                  </div>
-                  <button onClick={e=>{e.stopPropagation();deleteProj(p.id);}} style={{background:"none",border:"none",color:"#ccc",cursor:"pointer",fontSize:"16px",marginLeft:"8px",flexShrink:0}}>✕</button>
+                  <div style={{flex:1}}><p style={{margin:"0 0 3px",fontWeight:700,fontSize:"14px"}}>📁 {p.name}</p><p style={{margin:0,fontSize:"12px",color:MU,lineHeight:1.4}}>{p.desc.slice(0,80)}{p.desc.length>80?"…":""}</p></div>
+                  <button onClick={e=>{e.stopPropagation();delProj(p.id);}} style={{background:"none",border:"none",color:"#ccc",cursor:"pointer",fontSize:"16px",marginLeft:"8px",flexShrink:0}}>✕</button>
                 </div>
-                <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"8px"}}>
-                  {Object.keys(p.files).map(f=>(<span key={f} style={{fontSize:"10px",padding:"2px 8px",borderRadius:"8px",background:"#f0ecff",color:AC,fontWeight:600}}>{f}</span>))}
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:"11px",color:MU}}>{new Date(p.created).toLocaleDateString()} · {p.updates.length} update{p.updates.length!==1?"s":""}</span>
-                  <span style={{fontSize:"12px",color:AC,fontWeight:600}}>Open →</span>
-                </div>
+                <div style={{display:"flex",gap:"5px",flexWrap:"wrap",marginBottom:"8px"}}>{Object.keys(p.files).map(f=>(<span key={f} style={{fontSize:"10px",padding:"2px 8px",borderRadius:"8px",background:"#f0ecff",color:AC,fontWeight:600}}>{f}</span>))}</div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:"11px",color:MU}}>{new Date(p.created).toLocaleDateString()} · {p.updates.length} update{p.updates.length!==1?"s":""}</span><span style={{fontSize:"12px",color:AC,fontWeight:600}}>Open →</span></div>
               </div>
             ))}
           </div>
@@ -1538,7 +1461,6 @@ Include ALL files completely - do not omit any file.`;
       </div>
     );
   }
-
   // ── IMAGE ─────────────────────────────────────────────
   function ImgContent(){
     return(<div style={{padding:"20px"}}>
@@ -1609,11 +1531,16 @@ Include ALL files completely - do not omit any file.`;
         <p style={{margin:"0 0 4px",fontSize:"11px",fontWeight:700,color:MU}}>Create-AI API URL</p>
         <input style={{...S.fi({fontFamily:"monospace",fontSize:"11px",marginBottom:"12px"})}} placeholder="https://api.create-pied.vercel.app/v1" value={createaiUrl} onChange={e=>setCAUrl(e.target.value)}/>
         <p style={{margin:"0 0 6px",fontSize:"13px",fontWeight:700}}>AI Provider</p>
-        <div style={{display:"flex",gap:"8px",marginBottom:"12px"}}>
+        <div style={{display:"flex",gap:"8px",marginBottom:"10px"}}>
           {[{id:"groq",l:"⚡ Groq (Free)"},{id:"createai",l:"🚀 Create-AI"}].map(p=>(<button key={p.id}
-            onClick={()=>{setProv(p.id);sv({prov:p.id,model:p.id==="groq"?GM[0].id:CAM[0].id});setModel(p.id==="groq"?GM[0].id:CAM[0].id);}}
+            onClick={()=>{setProv(p.id);sv({prov:p.id});}}
             style={{flex:1,padding:"9px",borderRadius:"9px",border:"1.5px solid "+(aiProv===p.id?AC:BO),background:aiProv===p.id?"#ede9ff":"transparent",color:aiProv===p.id?AC:TX,fontWeight:aiProv===p.id?700:400,cursor:"pointer",fontSize:"12px"}}>{p.l}</button>))}
         </div>
+        {aiProv==="createai"&&<div style={{marginBottom:"10px"}}>
+          <p style={{margin:"0 0 4px",fontSize:"12px",fontWeight:700,color:MU}}>Create-AI Model Name</p>
+          <input style={{...S.fi({fontSize:"12px",marginBottom:"0"})}} placeholder="e.g. gpt-4o, claude-3-5-sonnet, gemini-pro…" value={model} onChange={e=>{setModel(e.target.value);sv({model:e.target.value});}}/>
+          <p style={{margin:"4px 0 0",fontSize:"11px",color:MU}}>Enter the exact model name your Create-AI API supports.</p>
+        </div>}
         <div style={{background:"#f5f5ff",borderRadius:"8px",padding:"10px",marginBottom:"12px",fontSize:"12px",color:MU}}>
           📊 Daily Questions: <strong style={{color:TX}}>{(()=>{try{const k="gp_ql_"+uid+"_"+(new Date().toISOString().slice(0,10));return parseInt(localStorage.getItem(k)||"0");}catch{return 0;}})()} / {user?.isAdv?50:user?.isPro?30:20}</strong> used today
           <br/><span style={{fontSize:"11px"}}>Free: 20/day · Pro: 30/day · Advance: 50/day</span>
@@ -1788,10 +1715,6 @@ Include ALL files completely - do not omit any file.`;
       case"plans":return PlansContent();
       case"settings":return SettingsContent();
       case"admin":return AdminContent();
-      case"createai":
-        if(typeof window!=="undefined")window.open("https://create-pied.vercel.app/","_blank","noopener,noreferrer");
-        setTimeout(()=>setTab("chat"),100);
-        return ChatContent();
       case"createai":
         if(typeof window!=="undefined")window.open("https://create-pied.vercel.app/","_blank","noopener,noreferrer");
         setTimeout(()=>setTab("chat"),100);
